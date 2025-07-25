@@ -1,0 +1,332 @@
+{
+  "name": "Ai Talent Search Agent",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        40
+      ],
+      "id": "30c019bf-7a9d-4103-b768-e8acc7728d19",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"job_title\": \"Data Scientist\",\n  \"skills\": \"Python\",\n  \"location\": \"New York\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        40
+      ],
+      "id": "5056dad4-5029-4774-8d69-46c8e4134220",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "url": "=https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "api_key",
+              "value": "bdc8f0d2089d2d7b41cace7e54133e9da685b48b7bd6abcf47bd50bd04b95a2c"
+            },
+            {
+              "name": "q",
+              "value": "=site:linkedin.com/in \"data scientist\" python \"new york\"\n"
+            },
+            {
+              "name": "render",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -60
+      ],
+      "id": "5abce1af-2bd0-4b08-ae4b-e715e11ec0f1",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const job = $input.all()[0].json.job_title;\nconst skills = $input.all()[0].json.skills;\nconst location = $input.all()[0].json.location;\n\n// Build and encode the Google X-Ray query\nconst query = `site:linkedin.com/in AND \"${job}\" AND \"${skills}\" AND \"${location}\"`;\nconst encodedQuery = encodeURIComponent(query);\n\nreturn [{\n  json: {\n    google_url: `https://www.google.com/search?q=${encodedQuery}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        40
+      ],
+      "id": "97c21dd0-618b-489c-b17f-87252d8691ca",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Function Node Code: extract SerpApi organic_results\nconst results = $input.item.json.organic_results || [];\n\nreturn results.map(r => ({\n  json: {\n    position: r.position,\n    name: r.title.split(' - ')[0],\n    title: r.title.split(' - ').slice(1).join(' - '),\n    link: r.link,\n    snippet: r.snippet\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -60
+      ],
+      "id": "443a7901-77ec-4f1f-8cbe-3516b52c9998",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.phantombuster.com/api/v2/agents/launch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Phantombuster-Key-1",
+              "value": "8aK1dplRMNYsG3gbRywO8eq316CyoezqYFdWqrpR0Ac"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"id\": \"1435863550413406\",\n  \"argument\": {\n    \"sessionCookie\": \"AQEDAT_sXgAEcvRlAAABlnUovNYAAAGXQJlxt00APNFzaOuvj63czvU0oPcK0BAVRlwNbsgF1cxrlej2RA2mnLH5M0CFcaSgQH20K9Ynn0FSpUiL4XjhUwkUdG-FGqED0tLhL7e3O8R_ECQfkdUKptDB\",\n    \"queries\": [\n      \"Data Scientist\"\n    ],\n    \"numberOfProfiles\": 50\n  }\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        140
+      ],
+      "id": "0f371240-3085-419d-b49e-684cac1a456b",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.phantombuster.com/api/v2/containers/fetch-output",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $json.containerId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Phantombuster-Key-1",
+              "value": "8aK1dplRMNYsG3gbRywO8eq316CyoezqYFdWqrpR0Ac"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        140
+      ],
+      "id": "7bafe2a1-3bdb-478d-b6ca-5496fa21f008",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        140
+      ],
+      "id": "99842777-685a-4a3b-b70b-779891e45081",
+      "name": "Wait",
+      "webhookId": "748092c7-9219-411e-af11-72ee6e6c7a8c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b7d479bd-a114-4599-9915-44e6924ff4e1",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        40
+      ],
+      "id": "e526c0b8-acaf-4a6e-8df6-836ec0e6e6c3",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        1540,
+        40
+      ],
+      "id": "9687467f-10e6-4661-92eb-71fe4905cfdc",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d09f2fb0-ad44-4d0f-aa0d-8a52f3a90c77",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "66d93edf89e5c52d8c4a63f838db7a651a3fd66523d6ecde0bc61ecc26f063cf"
+  },
+  "id": "ep2ikO7ik1lpnQzx",
+  "tags": []
+}

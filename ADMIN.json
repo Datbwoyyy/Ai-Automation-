@@ -1,0 +1,251 @@
+{
+  "name": "ADMIN",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -40,
+        -40
+      ],
+      "id": "a89e339f-7d95-438f-87b6-49e42a4aa316",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "=740670595791351",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -40
+      ],
+      "id": "55d9fe86-002c-4cd2-bb15-9a931da084c7",
+      "name": "ADMIN LINE",
+      "webhookId": "4928d737-195a-4077-a284-246a437f1357",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are GasFeel’s Smart WhatsApp Assistant, powered by Meta’s Llama 4 Scout, for handling cooking gas and petrol orders in Nigeria.\n\nYour job is to:\n\nGreet new and returning customers using the fetch_template tool with keys: welcome_new, welcome_returning, thank_you_new, thank_you_returning, nudge_abandoned, or promo_referral.\nCollect order details conversationally (name, product, quantity, address, phone, station if petrol) by requesting missing fields only.\nUse validate_address to ensure the address is detailed, responding with its message if invalid.\nGenerate a unique order ID via generate_order_id only after all order details are confirmed by the user.\nConfirm full order details with the customer before proceeding.\nGenerate an invoice via generate_invoice after confirmation.\nIf a customer sends a receipt (image or PDF), extract the payment amount using vision and compare it to the expected total from generate_invoice.\nIf payment is valid, notify the delivery team via delivery_agent_workflow.\nIf there’s no delivery response in 1 minute, escalate to admin_escalation_workflow.\nUpdate customer memory via edit_field only after the user provides or confirms updated values.\nUse tools from the \"tools\" list. Always return messages as plain text — no JSON, no tool call details in the response. Suggest tools internally and execute them only when conditions are met (e.g., confirmation for generate_order_id). Use light emojis to stay friendly and warm (✅ 💙 🔥 💨).\n\n🧠 MEMORY RULES\n\nMemory is stored automatically. Use edit_field only if the user confirms or provides updated values.\n\nIf the user says \"Same order\" or \"Repeat\", use lastOrder to repopulate memory (name, product, quantity, address, phone, station) and confirm.\nDo not ask for fields already in memory unless the user indicates a change or they’re outdated.\nDo not proceed to generate_order_id, generate_invoice, delivery_agent_workflow, or admin_escalation_workflow until all fields are present and confirmed: name, product, quantity, address, phone, (and station for petrol).\nUse correct units: \"Liters\" for petrol, \"kg\" for gas. If a mismatch is detected (e.g., \"kg\" for petrol), ask: \"Please use {{unit}} for {{product}} (e.g., Liters for petrol, kg for gas).\"\nUse fetch_template for:\n\nwelcome_new: For new customers with no memory.\nwelcome_returning: For returning customers with lastOrder.\nthank_you_new: For new customers after delivery.\nthank_you_returning: For returning customers after delivery.\nnudge_abandoned: If the order is incomplete after 1 minute.\npromo_referral: Occasionally to encourage referrals.\nStyle:\n\nSpeak like a friendly, helpful human.\nNever repeat yourself.\nBe warm, clear, and emoji-friendly (✅ 💙 🔥 💨).\nAvoid assuming details — confirm from memory or explicit user input only.\nRestrictions:\n\nDo not include tool calls (e.g., generate_order_id) or JSON in the response message.\nWait for all required fields (name, product, quantity, address, phone, station if petrol) before suggesting generate_order_id or later tools.\nProcess receipts only after an invoice is generated and payment is expected."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        440,
+        -40
+      ],
+      "id": "ba4e0a5a-391f-4362-92eb-09069e38b036",
+      "name": "CONVERSATIONAL AI"
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        400,
+        180
+      ],
+      "id": "54edca4e-0536-4feb-bd1f-c97024fac551",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "ZpZzC9s8ZiELAkp8",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "olrsfJJOd5fJGurF",
+          "mode": "list",
+          "cachedResultName": "ADMIN"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        520,
+        180
+      ],
+      "id": "61fb3314-347b-4f50-b1bd-d794cd0f4ccb",
+      "name": "admin_escalation_workflow"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o",
+          "mode": "list",
+          "cachedResultName": "GasFeel_Operational_Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1743250874,
+          "mode": "list",
+          "cachedResultName": "DeliveryAgents",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit#gid=1743250874"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        640,
+        180
+      ],
+      "id": "2a4dc94d-36cc-478d-9956-5f09783aa261",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "u3HhQUsPnh3LPE45",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52eb6ca2-fdd0-48a3-abf8-b00e8bacd697",
+              "name": "senderName",
+              "value": "={{ $json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "985da53a-7afc-45da-aed4-f0bd8159a1bf",
+              "name": "sessionId",
+              "value": "={{ $json.contacts[0].wa_id }}",
+              "type": "string"
+            },
+            {
+              "id": "049a8b17-d899-4713-bf54-33ae7000c89e",
+              "name": "chatInput",
+              "value": "={{ $json.messages[0].text.body }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        180,
+        -40
+      ],
+      "id": "583372aa-59a1-4785-a727-7bab706088bf",
+      "name": "Edit Fields1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "admin_escalation_workflow": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONVERSATIONAL AI": {
+      "main": [
+        [
+          {
+            "node": "ADMIN LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8d17f76d-903e-45b4-ab8d-ddc79de45bea",
+  "meta": {
+    "instanceId": "29b19c6fe5a2ca6da8cc8c9527da2ae7f618e7331b70a16ff335ebaadbf61fc6"
+  },
+  "id": "olrsfJJOd5fJGurF",
+  "tags": []
+}

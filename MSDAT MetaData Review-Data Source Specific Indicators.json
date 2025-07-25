@@ -1,0 +1,630 @@
+﻿{
+  "created": "1747434537300",
+  "updated": "1747434537300",
+  "name": "MSDAT MetaData Review-Data Source Specific Indicators",
+  "description": "",
+  "tags": [],
+  "pieces": [
+    "@activepieces/piece-google-sheets",
+    "@activepieces/piece-math-helper",
+    "@activepieces/piece-delay"
+  ],
+  "template": {
+    "displayName": "MSDAT MetaData Review-Data Source Specific Indicators",
+    "trigger": {
+      "name": "trigger",
+      "valid": true,
+      "displayName": "New or Updated Row",
+      "type": "PIECE_TRIGGER",
+      "settings": {
+        "pieceName": "@activepieces/piece-google-sheets",
+        "pieceVersion": "~0.12.2",
+        "pieceType": "OFFICIAL",
+        "packageType": "REGISTRY",
+        "input": {
+          "auth": "{{connections['AI-drive-GoogleSheets']}}",
+          "sheetId": 0,
+          "spreadsheetId": "1u672SjosAVIk4CQR6Hw61nS8yZkU0GBV4E08_8jnK2c",
+          "trigger_column": "B",
+          "includeTeamDrives": true
+        },
+        "inputUiInfo": {
+          "customizedInputs": {}
+        },
+        "triggerName": "google-sheets-new-or-updated-row"
+      },
+      "nextAction": {
+        "name": "step_7",
+        "skip": false,
+        "type": "CODE",
+        "valid": true,
+        "settings": {
+          "input": {},
+          "sourceCode": {
+            "code": "export const code = async () => {\n  const startTime = Date.now(); // Capture start time\n  return { message: \"Timer started\", startTime }; // Return startTime so it can be stored externally\n};",
+            "packageJson": "{\n  \"dependencies\": {\n    \"@activepieces/pieces-common\": \"0.4.3\"\n  }\n}"
+          },
+          "inputUiInfo": {
+            "customizedInputs": {}
+          },
+          "errorHandlingOptions": {
+            "retryOnFailure": {
+              "value": false
+            },
+            "continueOnFailure": {
+              "value": false
+            }
+          }
+        },
+        "nextAction": {
+          "name": "step_13",
+          "skip": false,
+          "type": "PIECE",
+          "valid": true,
+          "settings": {
+            "input": {
+              "first_number": "68",
+              "second_number": "10000"
+            },
+            "pieceName": "@activepieces/piece-math-helper",
+            "pieceType": "OFFICIAL",
+            "actionName": "generateRandom_math",
+            "inputUiInfo": {
+              "customizedInputs": {}
+            },
+            "packageType": "REGISTRY",
+            "pieceVersion": "~0.0.11",
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_1",
+            "skip": false,
+            "type": "PIECE",
+            "valid": true,
+            "settings": {
+              "input": {
+                "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                "memKey": "\n{{step_13}}",
+                "sheetId": 215587646,
+                "startRow": "1",
+                "groupSize": "100000",
+                "spreadsheetId": "1No7oRZIomJJ2UcdVSUO7G48QgBgY1-GazW4-ZEj6rqc",
+                "includeTeamDrives": true
+              },
+              "pieceName": "@activepieces/piece-google-sheets",
+              "pieceType": "OFFICIAL",
+              "actionName": "get_next_rows",
+              "inputUiInfo": {
+                "customizedInputs": {}
+              },
+              "packageType": "REGISTRY",
+              "pieceVersion": "~0.12.2",
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            },
+            "nextAction": {
+              "name": "step_2",
+              "skip": false,
+              "type": "CODE",
+              "valid": true,
+              "settings": {
+                "input": {
+                  "datasource_indicator": "{{step_1}}"
+                },
+                "sourceCode": {
+                  "code": "export const code = async (context: { datasource_indicator?: any[] }): Promise<any[]> => {\n  console.log(\"Received context:\", context);\n\n  // Retrieve the rows; default to an empty array if not provided.\n  const rows = context.datasource_indicator || [];\n  const issues: any[] = [];\n\n  // Define allowed frequencies (e.g. weekly, annual, annually).\n  const allowedFrequencies = ['weekly', 'annual', 'annually'];\n\n  // Define valid data levels.\n  const validDataLevels = ['national', 'zonal', 'state', 'senatorial', 'lga'];\n\n  // Iterate through each row.\n  rows.forEach((row, index) => {\n    const rowNumber = index + 1;\n    const values = row.values || {};\n\n    // Skip header row (if Column A equals \"datasource_id\", case-insensitive)\n    if (values.A && values.A.toLowerCase() === 'datasource_id') {\n      return;\n    }\n\n    const rowErrors: string[] = [];\n    const rowWarnings: string[] = [];\n\n    // --- Validate Fields for Data Source Specific Indicators ---\n\n    // Column D: Measurement Numerator should be a descriptive, non-empty string.\n    if (!values.D || typeof values.D !== 'string' || values.D.trim() === '') {\n      rowErrors.push('Missing measurement_numerator (Column D)');\n    }\n\n    // Column E: Measurement Denominator should be a descriptive, non-empty string.\n    if (!values.E || typeof values.E !== 'string' || values.E.trim() === '') {\n      rowErrors.push('Missing measurement_denominator (Column E)');\n    }\n\n    // Optional Logical Check:\n    // If both measurement_numerator and measurement_denominator can be parsed as numbers,\n    // then ensure numerator is not greater than denominator.\n    const numParsed = parseFloat(values.D?.trim().replace(/[%,\\s]+/g, ''));\n    const denomParsed = parseFloat(values.E?.trim().replace(/[%,\\s]+/g, ''));\n    if (!isNaN(numParsed) && !isNaN(denomParsed)) {\n      if (numParsed > denomParsed) {\n        rowErrors.push('Measurement numerator is greater than measurement denominator (Columns D and E)');\n      }\n    }\n\n    // Column G: Frequency – should be one of the allowed frequencies.\n    if (!values.G || typeof values.G !== 'string' || values.G.trim() === '') {\n      rowErrors.push('Missing frequency (Column G)');\n    } else if (!allowedFrequencies.includes(values.G.trim().toLowerCase())) {\n      rowErrors.push(`Frequency \"${values.G}\" is not valid (Column G). Expected one of: ${allowedFrequencies.join(', ')}`);\n    }\n\n    // Column H: Methodology Estimation – flag as warning if it appears to be a placeholder.\n    if (!values.H || typeof values.H !== 'string' || values.H.trim() === '') {\n      rowErrors.push('Missing methodology_estimation (Column H)');\n    } else if (\n      values.H.trim().toLowerCase() === 'not applicable' ||\n      values.H.trim().toLowerCase() === 'methodology_estimation'\n    ) {\n      rowWarnings.push('Methodology_estimation appears to be a placeholder (Column H)');\n    }\n\n    // Column I: Indicator Definition – should be non-empty, start with an uppercase letter, and be of sufficient length.\n    if (!values.I || typeof values.I !== 'string' || values.I.trim() === '') {\n      rowErrors.push('Missing indicator_definition (Column I)');\n    } else {\n      const def = values.I.trim();\n      if (!/^[A-Z]/.test(def)) {\n        rowErrors.push('Indicator definition should start with an uppercase letter (Column I)');\n      }\n      if (def.length < 20) {\n        rowErrors.push('Indicator definition seems too short; please review (Column I)');\n      }\n    }\n\n    // Column J: Data Level – can be one or more valid entries (e.g., \"National, State\").\n    if (!values.J || typeof values.J !== 'string' || values.J.trim() === '') {\n      rowErrors.push('Missing data_level (Column J)');\n    } else {\n      // Split the value by commas and trim each entry.\n      const levels = values.J.split(',').map(level => level.trim().toLowerCase());\n      const invalidLevels = levels.filter(level => !validDataLevels.includes(level));\n      if (invalidLevels.length > 0) {\n        rowErrors.push(`Data level \"${values.J}\" contains invalid entries: ${invalidLevels.join(', ')}. Expected values: ${validDataLevels.join(', ')}`);\n      }\n    }\n\n    // Column K: Data Level IDs – must be a valid number.\n    if (!values.K || isNaN(Number(values.K.trim()))) {\n      rowErrors.push('Missing or invalid data_level_ids (Column K)');\n    }\n\n    // Columns L-P: Boolean fields (National, Zonal, State, Senatorial, LGA) – should be \"TRUE\" or \"FALSE\".\n    if (!values.L || (values.L.trim().toUpperCase() !== 'TRUE' && values.L.trim().toUpperCase() !== 'FALSE')) {\n      rowErrors.push('National should be TRUE or FALSE (Column L)');\n    }\n    if (!values.M || (values.M.trim().toUpperCase() !== 'TRUE' && values.M.trim().toUpperCase() !== 'FALSE')) {\n      rowErrors.push('Zonal should be TRUE or FALSE (Column M)');\n    }\n    if (!values.N || (values.N.trim().toUpperCase() !== 'TRUE' && values.N.trim().toUpperCase() !== 'FALSE')) {\n      rowErrors.push('State should be TRUE or FALSE (Column N)');\n    }\n    if (!values.O || (values.O.trim().toUpperCase() !== 'TRUE' && values.O.trim().toUpperCase() !== 'FALSE')) {\n      rowErrors.push('Senatorial should be TRUE or FALSE (Column O)');\n    }\n    if (values.P && (values.P.trim().toUpperCase() !== 'TRUE' && values.P.trim().toUpperCase() !== 'FALSE')) {\n      rowErrors.push('LGA should be TRUE or FALSE (Column P)');\n    }\n\n    // Logical Check Example:\n    // If the indicator_definition mentions \"percentage\", then warn if measurement_numerator doesn't include a \"%\" symbol.\n    if (\n      values.I &&\n      /percentage/i.test(values.I) &&\n      values.D &&\n      typeof values.D === 'string' &&\n      !/%/.test(values.D)\n    ) {\n      rowWarnings.push('Indicator definition suggests a percentage but measurement_numerator does not include \"%\" (Columns D and I)');\n    }\n\n    // If any errors or warnings were found for this row, add them to the issues array.\n    if (rowErrors.length > 0 || rowWarnings.length > 0) {\n      issues.push({\n        sheet: \"Data source Specific indicators\",\n        row: rowNumber,\n        errors: rowErrors,\n        warnings: rowWarnings,\n        values: values // Included for debugging purposes.\n      });\n    }\n  });\n\n  return issues;\n};\n",
+                  "packageJson": "{\n  \"dependencies\": {\n    \"papaparse\": \"5.5.2\"\n  }\n}"
+                },
+                "inputUiInfo": {
+                  "customizedInputs": {}
+                },
+                "errorHandlingOptions": {
+                  "retryOnFailure": {
+                    "value": false
+                  },
+                  "continueOnFailure": {
+                    "value": false
+                  }
+                }
+              },
+              "nextAction": {
+                "name": "step_9",
+                "skip": false,
+                "type": "PIECE",
+                "valid": true,
+                "settings": {
+                  "input": {
+                    "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                    "sheetId": 1557113650,
+                    "spreadsheetId": "1Gd7cGdmsVqmVvPgWuQOqUxqBBF-Kl-DYPysMvl2uLI0",
+                    "includeTeamDrives": true,
+                    "is_first_row_headers": true
+                  },
+                  "pieceName": "@activepieces/piece-google-sheets",
+                  "pieceType": "OFFICIAL",
+                  "actionName": "clear_sheet",
+                  "inputUiInfo": {
+                    "customizedInputs": {}
+                  },
+                  "packageType": "REGISTRY",
+                  "pieceVersion": "~0.12.2",
+                  "errorHandlingOptions": {
+                    "retryOnFailure": {
+                      "value": false
+                    },
+                    "continueOnFailure": {
+                      "value": false
+                    }
+                  }
+                },
+                "nextAction": {
+                  "name": "step_4",
+                  "skip": false,
+                  "type": "LOOP_ON_ITEMS",
+                  "valid": true,
+                  "settings": {
+                    "items": "{{step_2}}",
+                    "inputUiInfo": {
+                      "customizedInputs": {}
+                    }
+                  },
+                  "displayName": "Loop on Items",
+                  "firstLoopAction": {
+                    "name": "step_8",
+                    "skip": false,
+                    "type": "CODE",
+                    "valid": true,
+                    "settings": {
+                      "input": {
+                        "startTime": "{{step_3['startTime']}}"
+                      },
+                      "sourceCode": {
+                        "code": "export const code = async (inputs) => {\n  if (!inputs.startTime) return { elapsedTime: 0 }; // If no startTime is passed, return 0\n  const elapsedTime = Math.floor((Date.now() - inputs.startTime) / 1000);\n  return { elapsedTime };\n};",
+                        "packageJson": "{\n  \"dependencies\": {\n  }\n}"
+                      },
+                      "inputUiInfo": {
+                        "customizedInputs": {}
+                      },
+                      "errorHandlingOptions": {
+                        "retryOnFailure": {
+                          "value": false
+                        },
+                        "continueOnFailure": {
+                          "value": false
+                        }
+                      }
+                    },
+                    "nextAction": {
+                      "name": "step_10",
+                      "skip": false,
+                      "type": "ROUTER",
+                      "valid": true,
+                      "children": [
+                        {
+                          "name": "step_5",
+                          "skip": false,
+                          "type": "ROUTER",
+                          "valid": true,
+                          "children": [
+                            {
+                              "name": "step_3",
+                              "skip": false,
+                              "type": "PIECE",
+                              "valid": true,
+                              "settings": {
+                                "input": {
+                                  "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                                  "values": {
+                                    "A": "{{step_4['item']['values']['A']}}",
+                                    "B": "{{step_4['item']['values']['B']}}",
+                                    "C": "{{step_4['item']['values']['C']}}",
+                                    "D": "{{step_4['item']['values']['D']}}",
+                                    "E": "{{step_4['item']['values']['E']}}",
+                                    "F": "{{step_4['item']['values']['F']}}",
+                                    "G": "{{step_4['item']['values']['G']}}",
+                                    "H": "{{step_4['item']['values']['H']}}",
+                                    "I": "{{step_4['item']['values']['I']}}",
+                                    "J": "{{step_4['item']['values']['J']}}",
+                                    "K": "{{step_4['item']['values']['K']}}",
+                                    "L": "{{step_4['item']['values']['L']}}",
+                                    "M": "{{step_4['item']['values']['M']}}",
+                                    "N": "{{step_4['item']['values']['N']}}",
+                                    "O": "{{step_4['item']['values']['O']}}",
+                                    "P": "{{step_4['item']['values']['P']}}",
+                                    "Q": "{{step_4['item']['errors'][0]}}",
+                                    "R": "{{step_4['item']['errors'][1]}}",
+                                    "S": "{{step_4['item']['errors'][2]}}",
+                                    "T": "{{step_4['item']['errors'][3]}}",
+                                    "U": "{{step_4['item']['errors'][4]}}",
+                                    "V": "{{step_4['item']['errors'][5]}}",
+                                    "W": "{{step_4['item']['errors'][6]}}",
+                                    "X": "{{step_4['item']['errors'][7]}}",
+                                    "Y": "{{step_4['item']['errors'][8]}}",
+                                    "Z": "{{step_4['item']['warnings'][0]}}"
+                                  },
+                                  "sheetId": 1557113650,
+                                  "as_string": false,
+                                  "spreadsheetId": "1Gd7cGdmsVqmVvPgWuQOqUxqBBF-Kl-DYPysMvl2uLI0",
+                                  "first_row_headers": true,
+                                  "includeTeamDrives": true
+                                },
+                                "pieceName": "@activepieces/piece-google-sheets",
+                                "pieceType": "OFFICIAL",
+                                "actionName": "insert_row",
+                                "inputUiInfo": {
+                                  "schema": {
+                                    "values": {
+                                      "A": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "",
+                                        "displayName": "",
+                                        "defaultValue": ""
+                                      },
+                                      "B": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "datasource_id",
+                                        "displayName": "datasource_id",
+                                        "defaultValue": ""
+                                      },
+                                      "C": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "indicator_id",
+                                        "displayName": "indicator_id",
+                                        "defaultValue": ""
+                                      },
+                                      "D": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "datasource_indicator",
+                                        "displayName": "datasource_indicator",
+                                        "defaultValue": ""
+                                      },
+                                      "E": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "measurement_numerator",
+                                        "displayName": "measurement_numerator",
+                                        "defaultValue": ""
+                                      },
+                                      "F": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "measurement_denominator",
+                                        "displayName": "measurement_denominator",
+                                        "defaultValue": ""
+                                      },
+                                      "G": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "frequency",
+                                        "displayName": "frequency",
+                                        "defaultValue": ""
+                                      },
+                                      "H": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "methodology_estimation",
+                                        "displayName": "methodology_estimation",
+                                        "defaultValue": ""
+                                      },
+                                      "I": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "indicator_definition",
+                                        "displayName": "indicator_definition",
+                                        "defaultValue": ""
+                                      },
+                                      "J": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "data_level",
+                                        "displayName": "data_level",
+                                        "defaultValue": ""
+                                      },
+                                      "K": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "data_level_ids",
+                                        "displayName": "data_level_ids",
+                                        "defaultValue": ""
+                                      },
+                                      "L": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "national",
+                                        "displayName": "national",
+                                        "defaultValue": ""
+                                      },
+                                      "M": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "zonal",
+                                        "displayName": "zonal",
+                                        "defaultValue": ""
+                                      },
+                                      "N": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "state",
+                                        "displayName": "state",
+                                        "defaultValue": ""
+                                      },
+                                      "O": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "senatorial",
+                                        "displayName": "senatorial",
+                                        "defaultValue": ""
+                                      },
+                                      "P": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "lga",
+                                        "displayName": "lga",
+                                        "defaultValue": ""
+                                      },
+                                      "Q": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 1",
+                                        "displayName": "errors 1",
+                                        "defaultValue": ""
+                                      },
+                                      "R": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 2",
+                                        "displayName": "errors 2",
+                                        "defaultValue": ""
+                                      },
+                                      "S": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 3",
+                                        "displayName": "errors 3",
+                                        "defaultValue": ""
+                                      },
+                                      "T": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 4",
+                                        "displayName": "errors 4",
+                                        "defaultValue": ""
+                                      },
+                                      "U": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 5",
+                                        "displayName": "errors 5",
+                                        "defaultValue": ""
+                                      },
+                                      "V": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 6",
+                                        "displayName": "errors 6",
+                                        "defaultValue": ""
+                                      },
+                                      "W": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 7",
+                                        "displayName": "errors 7",
+                                        "defaultValue": ""
+                                      },
+                                      "X": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 8",
+                                        "displayName": "errors 8",
+                                        "defaultValue": ""
+                                      },
+                                      "Y": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "errors 9",
+                                        "displayName": "errors 9",
+                                        "defaultValue": ""
+                                      },
+                                      "Z": {
+                                        "type": "SHORT_TEXT",
+                                        "required": false,
+                                        "description": "warnings 0 ",
+                                        "displayName": "warnings 0 ",
+                                        "defaultValue": ""
+                                      }
+                                    }
+                                  },
+                                  "customizedInputs": {}
+                                },
+                                "packageType": "REGISTRY",
+                                "pieceVersion": "~0.12.2",
+                                "errorHandlingOptions": {
+                                  "retryOnFailure": {
+                                    "value": false
+                                  },
+                                  "continueOnFailure": {
+                                    "value": false
+                                  }
+                                }
+                              },
+                              "nextAction": {
+                                "name": "step_21",
+                                "skip": false,
+                                "type": "PIECE",
+                                "valid": true,
+                                "settings": {
+                                  "input": {
+                                    "unit": "seconds",
+                                    "delayFor": "10"
+                                  },
+                                  "pieceName": "@activepieces/piece-delay",
+                                  "pieceType": "OFFICIAL",
+                                  "actionName": "delayFor",
+                                  "inputUiInfo": {
+                                    "customizedInputs": {}
+                                  },
+                                  "packageType": "REGISTRY",
+                                  "pieceVersion": "~0.3.12",
+                                  "errorHandlingOptions": {
+                                    "retryOnFailure": {
+                                      "value": false
+                                    },
+                                    "continueOnFailure": {
+                                      "value": false
+                                    }
+                                  }
+                                },
+                                "displayName": "Delay For"
+                              },
+                              "displayName": "Insert Row"
+                            },
+                            null
+                          ],
+                          "settings": {
+                            "branches": [
+                              {
+                                "branchName": "Branch 1",
+                                "branchType": "CONDITION",
+                                "conditions": [
+                                  [
+                                    {
+                                      "operator": "NUMBER_IS_GREATER_THAN",
+                                      "firstValue": "{{step_4['index']}}",
+                                      "secondValue": "{{trigger['values']['B']}}"
+                                    }
+                                  ]
+                                ]
+                              },
+                              {
+                                "branchName": "Otherwise",
+                                "branchType": "FALLBACK"
+                              }
+                            ],
+                            "inputUiInfo": {
+                              "customizedInputs": {}
+                            },
+                            "executionType": "EXECUTE_FIRST_MATCH"
+                          },
+                          "displayName": "Router"
+                        },
+                        {
+                          "name": "step_6",
+                          "skip": false,
+                          "type": "PIECE",
+                          "valid": true,
+                          "settings": {
+                            "input": {
+                              "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                              "row_id": "2",
+                              "values": {
+                                "B": "{{step_4['index']}}"
+                              },
+                              "sheetId": 0,
+                              "spreadsheetId": "1u672SjosAVIk4CQR6Hw61nS8yZkU0GBV4E08_8jnK2c",
+                              "first_row_headers": true,
+                              "includeTeamDrives": true
+                            },
+                            "pieceName": "@activepieces/piece-google-sheets",
+                            "pieceType": "OFFICIAL",
+                            "actionName": "update_row",
+                            "inputUiInfo": {
+                              "schema": {
+                                "values": {
+                                  "A": {
+                                    "type": "SHORT_TEXT",
+                                    "required": false,
+                                    "description": "Last Index 1",
+                                    "displayName": "Last Index 1",
+                                    "defaultValue": ""
+                                  },
+                                  "B": {
+                                    "type": "SHORT_TEXT",
+                                    "required": false,
+                                    "description": "Last Index 2",
+                                    "displayName": "Last Index 2",
+                                    "defaultValue": ""
+                                  }
+                                }
+                              },
+                              "customizedInputs": {}
+                            },
+                            "packageType": "REGISTRY",
+                            "pieceVersion": "~0.12.2",
+                            "errorHandlingOptions": {
+                              "retryOnFailure": {
+                                "value": false
+                              },
+                              "continueOnFailure": {
+                                "value": false
+                              }
+                            }
+                          },
+                          "displayName": "Update Row"
+                        }
+                      ],
+                      "settings": {
+                        "branches": [
+                          {
+                            "branchName": "Branch 1",
+                            "branchType": "CONDITION",
+                            "conditions": [
+                              [
+                                {
+                                  "operator": "NUMBER_IS_LESS_THAN",
+                                  "firstValue": "{{step_8['elapsedTime']}}",
+                                  "secondValue": "590"
+                                }
+                              ]
+                            ]
+                          },
+                          {
+                            "branchName": "Otherwise",
+                            "branchType": "FALLBACK"
+                          }
+                        ],
+                        "inputUiInfo": {
+                          "customizedInputs": {}
+                        },
+                        "executionType": "EXECUTE_FIRST_MATCH"
+                      },
+                      "displayName": "Router"
+                    },
+                    "displayName": "Get elapsed time Copy"
+                  }
+                },
+                "displayName": "Clear Sheet"
+              },
+              "displayName": "Custom Javascript Code"
+            },
+            "displayName": "Get next row(s)"
+          },
+          "displayName": "Generate Random Number"
+        },
+        "displayName": "start counter"
+      }
+    },
+    "valid": true,
+    "connectionIds": [
+      "AI-drive-GoogleSheets"
+    ],
+    "schemaVersion": "1"
+  },
+  "blogUrl": ""
+}

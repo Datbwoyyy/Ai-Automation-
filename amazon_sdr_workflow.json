@@ -1,0 +1,305 @@
+{
+  "name": "Amazon SDR Automation with MCP",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "url": "https://api.yoursource.com/amazon-sellers",
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "country",
+              "value": "US,UK"
+            },
+            {
+              "name": "min_revenue",
+              "value": "150000"
+            },
+            {
+              "name": "max_revenue",
+              "value": "5000000"
+            }
+          ]
+        }
+      },
+      "name": "Fetch Sellers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        200,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.map(item => ({ json: {\n  company: item.companyName,\n  url: item.amazonUrl,\n  asin: item.asin\n}}));"
+      },
+      "name": "Parse Sellers",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        400,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "url": "https://api.enrichment.com/find",
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "name",
+              "value": "={{$json.company}}"
+            }
+          ]
+        }
+      },
+      "name": "Enrich Contact",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        600,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const url = `https://www.amazon.com/dp/${$json.asin}`;\nreturn [{ json: { amazonUrl: url } }];"
+      },
+      "name": "Build URL",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "url": "={{$json.amazonUrl}}"
+      },
+      "name": "Fetch Page HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "claude-2",
+        "clientToolId": "={{$credentials.mcpApi.id}}",
+        "input": "You are an Amazon listings expert. Analyze this HTML page and return JSON with a list of issues and 3 improvement suggestions. HTML: {{$node[\"Fetch Page HTML\"].json}}",
+        "output": "={{ { issues: output.issues, suggestions: output.suggestions } }}"
+      },
+      "name": "MCP Audit",
+      "type": "n8n-nodes-base.mcpClientTool",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "headersUi": {
+            "parameter": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{ $credentials.mailchimpApi.key }}"
+              }
+            ]
+          }
+        },
+        "fromEmail": "sdr@growthscalers.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "Audit Feedback for {{$json.company}}\u2019s Amazon Listing",
+        "body": "Hi {{$json.firstName}},\n\nI noticed 2 quick wins: {{$json.issues.join(\", \")}}. Implementing these could boost conversions by 15\u201330%. Let\u2019s chat?\n\nBest,\nGrowth Scalers"
+      },
+      "name": "Send Email #1",
+      "type": "n8n-nodes-base.mailChimp",
+      "typeVersion": 1,
+      "position": [
+        800,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "wait",
+        "time": 172800
+      },
+      "name": "Wait 2d",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "headerAuth": {
+          "headersUi": {
+            "parameter": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{ $credentials.linkedinApi.key }}"
+              }
+            ]
+          }
+        },
+        "url": "https://api.linkedin.com/v2/invitations",
+        "method": "POST",
+        "bodyParametersUi": {
+          "parameter": [
+            {
+              "name": "recipient",
+              "value": "={{$json.linkedinId}}"
+            },
+            {
+              "name": "message",
+              "value": "Hi {{$json.firstName}}, saw your product audit\u2014keen to connect and share more tips!"
+            }
+          ]
+        }
+      },
+      "name": "LinkedIn Connect",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "oAuth2Api": "zohoCrm",
+        "module": "Leads",
+        "operation": "create",
+        "fields": {
+          "Last_Name": "={{$json.lastName}}",
+          "Company": "={{$json.company}}",
+          "Email": "={{$json.email}}",
+          "Description": "Follow-up call needed"
+        }
+      },
+      "name": "CRM Task",
+      "type": "n8n-nodes-base.zohoCrm",
+      "typeVersion": 1,
+      "position": [
+        800,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Fetch Sellers": {
+      "main": [
+        [
+          {
+            "node": "Parse Sellers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sellers": {
+      "main": [
+        [
+          {
+            "node": "Enrich Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Contact": {
+      "main": [
+        [
+          {
+            "node": "Build URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build URL": {
+      "main": [
+        [
+          {
+            "node": "Fetch Page HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Page HTML": {
+      "main": [
+        [
+          {
+            "node": "MCP Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Audit": {
+      "main": [
+        [
+          {
+            "node": "Send Email #1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email #1": {
+      "main": [
+        [
+          {
+            "node": "Wait 2d",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2d": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Connect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Connect": {
+      "main": [
+        [
+          {
+            "node": "CRM Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

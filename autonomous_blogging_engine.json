@@ -1,0 +1,368 @@
+{
+  "name": "Autonomous Blogging Engine",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "cronExpression": "0 0 * * MON",
+        "timeZone": "Africa/Lagos"
+      },
+      "name": "Weekly Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "baseId": "{{AIRTABLE_BASE_ID}}",
+        "table": "Topics",
+        "options": {
+          "view": "Grid view"
+        }
+      },
+      "name": "Fetch Topics",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "credentials": {
+        "airtableApi": {
+          "apiKey": "={{ $credentials.AirtableApi.apiKey }}"
+        }
+      },
+      "position": [
+        450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "split",
+        "batchSize": 1
+      },
+      "name": "Split Topics",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        650,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "Generate a blog outline for a 700-word post on {{$json[\"fields\"].Topic}}. Include a strong hook, 3-4 examples, and a clear CTA at the end.",
+        "maxTokens": 512
+      },
+      "name": "Generate Outline",
+      "type": "n8n-nodes-base.openAI",
+      "typeVersion": 1,
+      "credentials": {
+        "openAIApi": {
+          "apiKey": "={{ $credentials.OpenAIApi.apiKey }}"
+        }
+      },
+      "position": [
+        850,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "Using the outline below, write a full 700-word blog post. Gear it toward startup founders, use statistics, storytelling, and a confident tone.\n\nOutline:\n{{$node[\"Generate Outline\"].json.choices[0].text}}",
+        "maxTokens": 2048
+      },
+      "name": "Write Full Post",
+      "type": "n8n-nodes-base.openAI",
+      "typeVersion": 1,
+      "credentials": {
+        "openAIApi": {
+          "apiKey": "={{ $credentials.OpenAIApi.apiKey }}"
+        }
+      },
+      "position": [
+        1050,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "postType": "post",
+        "title": "={{ $json[\"fields\"].Topic }}",
+        "content": "={{ $node[\"Write Full Post\"].json.choices[0].text }}",
+        "status": "draft"
+      },
+      "name": "WordPress Draft",
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
+      "credentials": {
+        "wordpressApi": {
+          "url": "={{ $credentials.WordpressApi.url }}",
+          "username": "={{ $credentials.WordpressApi.username }}",
+          "password": "={{ $credentials.WordpressApi.password }}"
+        }
+      },
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "shorten",
+        "longUrl": "={{ $node[\"WordPress Draft\"].json.link }}"
+      },
+      "name": "Shorten URL",
+      "type": "n8n-nodes-base.bitly",
+      "typeVersion": 1,
+      "credentials": {
+        "bitlyApi": {
+          "accessToken": "={{ $credentials.BitlyApi.accessToken }}"
+        }
+      },
+      "position": [
+        1450,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "baseId": "{{AIRTABLE_BASE_ID}}",
+        "table": "Topics",
+        "recordId": "={{ $json[\"id\"] }}",
+        "fields": {
+          "URL": "={{ $node[\"WordPress Draft\"].json.link }}",
+          "ShortURL": "={{ $node[\"Shorten URL\"].json.link }}"
+        }
+      },
+      "name": "Update Topic Record",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "credentials": {
+        "airtableApi": {
+          "apiKey": "={{ $credentials.AirtableApi.apiKey }}"
+        }
+      },
+      "position": [
+        1650,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "cronExpression": "0 0 1 * *",
+        "timeZone": "Africa/Lagos"
+      },
+      "name": "Monthly Analysis Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "list",
+        "baseId": "{{AIRTABLE_BASE_ID}}",
+        "table": "Topics",
+        "options": {
+          "view": "Published"
+        }
+      },
+      "name": "Fetch Published Posts",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "credentials": {
+        "airtableApi": {
+          "apiKey": "={{ $credentials.AirtableApi.apiKey }}"
+        }
+      },
+      "position": [
+        450,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare performance data for OpenAI\nreturn items.map(item => ({ json: { title: item.json.fields.Topic, url: item.json.fields.URL, views: item.json.fields.Views, clicks: item.json.fields.Clicks } }));"
+      },
+      "name": "Format Performance Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        650,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "Analyze the following blog performance data (in JSON). Identify the best performer and suggest 3 new blog topics based on what worked. Data: {{$node[\"Format Performance Data\"].json}}",
+        "maxTokens": 512
+      },
+      "name": "Analyze Performance",
+      "type": "n8n-nodes-base.openAI",
+      "typeVersion": 1,
+      "credentials": {
+        "openAIApi": {
+          "apiKey": "={{ $credentials.OpenAIApi.apiKey }}"
+        }
+      },
+      "position": [
+        850,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "baseId": "{{AIRTABLE_BASE_ID}}",
+        "table": "Topics",
+        "fields": {
+          "Topic": "={{ $node[\"Analyze Performance\"].json.choices[0].text }}"
+        }
+      },
+      "name": "Insert New Topics",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 1,
+      "credentials": {
+        "airtableApi": {
+          "apiKey": "={{ $credentials.AirtableApi.apiKey }}"
+        }
+      },
+      "position": [
+        1050,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Weekly Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Topics": {
+      "main": [
+        [
+          {
+            "node": "Split Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Topics": {
+      "main": [
+        [
+          {
+            "node": "Generate Outline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Outline": {
+      "main": [
+        [
+          {
+            "node": "Write Full Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Full Post": {
+      "main": [
+        [
+          {
+            "node": "WordPress Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WordPress Draft": {
+      "main": [
+        [
+          {
+            "node": "Shorten URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shorten URL": {
+      "main": [
+        [
+          {
+            "node": "Update Topic Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monthly Analysis Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Published Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Published Posts": {
+      "main": [
+        [
+          {
+            "node": "Format Performance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Performance Data": {
+      "main": [
+        [
+          {
+            "node": "Analyze Performance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Performance": {
+      "main": [
+        [
+          {
+            "node": "Insert New Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

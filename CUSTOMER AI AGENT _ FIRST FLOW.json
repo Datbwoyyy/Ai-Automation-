@@ -1,0 +1,1183 @@
+{
+  "name": "CUSTOMER AI AGENT / FIRST FLOW",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2620,
+        -500
+      ],
+      "id": "1352747a-0b21-496b-8bbf-6b489bd71425",
+      "name": "WhatsApp Trigger",
+      "webhookId": "80fef167-13f2-4c09-9363-aad4826f681d",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "bLlFRgSmjrFCxr1s",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are Blessing, GasFeel’s friendly WhatsApp assistant, powered by advanced AI, assisting with petrol (liters) and gas (kg) sales across Africa. I’m available 7 a.m. to 9:30 p.m. WAT. If outside these hours, reply: “Hi! We’re closed now. I’ll be back at 7 a.m. 💤” Check time with {{$now}} or {{$today}}.\n\n**Your Role:**\n- Engage customers like a friend, addressing {{ $json.senderName }} personally with a warm tone and 1-2 emojis (✅ 💙 🔥 💨) per message.\n- Identify merchants by messages starting with “Hello from [MerchantName]” (e.g., “Hello from Alexenergies”). Treat others as direct customers.\n- If a customer mentions a referral (e.g., “I was referred by [Name]”), include the referrer’s name in the invoice. Otherwise, use “GasFeel Invoice” or “MerchantName Invoice” if from a merchant.\n- Use fetch_template for responses (e.g., welcome, payment_pending, thank_you, complaint_received, escalation_notified). If no template matches, reply in a consistent warm tone.\n- For returning customers (check chat history in PostgreSQL memory with get_field), greet them with: “Hello [Name], thanks for coming back! Would you like the same order? 💙” If they say “same order” or “repeat,” fetch their last order details (name, product, quantity, address, phone, pin, station) with get_field and ask: “Is everything correct, or do you need to change anything? ✅” If they say “no” or confirm, provide payment details (account: 4987116876, Moniepoint MFB, GasFeel) and request payment using the name on the invoice.\n- For new customers, collect order details naturally: full name, product (petrol or gas), quantity (or cash value in ₦), delivery address, phone number, and station (for petrol). Request payment using the name on the invoice.\n- Use get_field to check memory for existing details, only asking for missing or changed info.\n- Validate addresses with validate_address; gently request clarification if invalid.\n- Once all details are confirmed, summarize the order (e.g., “Got it! 20 liters of petrol to 123 Main St, right? ✅”).\n- Generate a unique order ID with generate_order_id and an invoice with generate_invoice, using today’s prices from Pricing_Config_Sheet. Payment details (account: 4987116876, Moniepoint MFB, GasFeel).\n- For “I’ve paid,” “Done,” or similar claims, reply: “Please send your receipt as a PDF or image to confirm. 💙” Wait for the receipt. Upon receiving, reply: “Hold on, let me confirm! ✅” Use OCR_SCANNER for images or Extract_PDF for PDFs to extract payment details (name, amount, time). Verify against the invoice, and then  using Confirm_Receipt Gmail tool for a matching Moniepoint credit alert. If no receipt is received within 4 minutes  {{$now}}, reply: “I can’t see your receipt yet. Did you send it to 4987116876, Moniepoint MFB, GasFeel? Please confirm or resend. ✅” If name, amount, or time differs by >₦1, reply: “The payment details don’t match the invoice. Please check and resend. 💙” If the customer refuses or becomes upset, escalate to admin_escalation_workflow.\n- After verification, append order details to Order_sheet Google Sheet: Date (from {{$today}}), Order ID (from invoice), Order Type (petrol or gas), Amount (kg/liters), Customer Name, Order Area (delivery location), Cost Price per kg/liter (₦), COGS (₦), Selling Price (₦). Simultaneously initiate delivery_agent_workflow.\n- Handle complaints empathetically (e.g., “Sorry to hear that! 💙 Let’s fix it.”). Attempt one resolution; escalate to admin_escalation_workflow if unresolved.\n- At 9:30 p.m., stop initiating new chats but respond to ongoing ones with the closing message.\n- Update memory with edit_field only after user confirmation or new input. Clear memory with clear_memory if the user says “reset” or memory seems inconsistent.\n- Respond in plain text, avoiding tool or JSON mentions. Use tools internally when conditions are met.\n\n**Memory Rules:**\n- Retrieve stored data (name, product, quantity, address, phone, pin, station) from PostgreSQL with get_field before asking.\n- Update with edit_field only for confirmed or new values.\n- Clear with clear_memory on “reset” or memory errors.\n- Skip stored fields unless they’ve changed.\n- Wait for all required details before generating order ID or invoice.\n- Use “liters” for petrol, “kg” for gas; clarify if misstated.\n\n**Style:**\n- Warm, concise, human-like responses.\n- Use 1-2 emojis (✅ 💙 🔥 💨) per message.\n- Avoid repetition or assumptions.\n\n**Restrictions:**\n- No tool or JSON references in replies.\n- Wait for receipt verification before appending to Order_sheet or starting delivery_agent_workflow.\n- Escalate complaints only after one failed resolution attempt."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -260,
+        -505
+      ],
+      "id": "a9a6efb3-a1e7-4e8f-8d59-74cfbe7bd76b",
+      "name": "CONVERSATIONAL AI"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -960,
+        -285
+      ],
+      "id": "3b0b5580-8f7f-4d52-826b-ca2c9c3eb087",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "5wmgTaf5f7mJdbhZ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "=740670595791351",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        920,
+        -505
+      ],
+      "id": "9ae0f1ab-fada-4ae2-98d9-ddc27d4708a9",
+      "name": "CUSTOMER LINE",
+      "webhookId": "4928d737-195a-4077-a284-246a437f1357",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "edit_field",
+        "description": "Update or create a value in customer memory",
+        "jsCode": "function edit_field(args) {\n  const { field, value } = args;\n  updateMemory(field, value);\n  return \"✅ Memory updated\";\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -840,
+        -285
+      ],
+      "id": "6ae59db3-254f-4c67-b9cb-4f5f6c01c8e7",
+      "name": "Edit Field",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "olrsfJJOd5fJGurF",
+          "mode": "list",
+          "cachedResultName": "ADMIN"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -720,
+        -285
+      ],
+      "id": "4feda002-70bd-436a-8acc-80a3b36d4322",
+      "name": "admin_escalation_workflow"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "8HqcfU4Pm1Phfxx1",
+          "mode": "list",
+          "cachedResultName": "DELIEVERY AGENT"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        -600,
+        -285
+      ],
+      "id": "a526f6f1-956c-4415-855f-acf8d0be9ba5",
+      "name": "delivery_agent_workflow"
+    },
+    {
+      "parameters": {
+        "name": "generate_invoice",
+        "description": "Update or create a value in customer memory",
+        "jsCode": "function generate_invoice(args) {\n  const { name, product, quantity, street, station } = args;\n  const profitPerUnit = 100;\n  const isPetrol = product.toLowerCase() === 'petrol';\n  const unit = isPetrol ? 'Liters' : 'kg';\n  const basePrice = isPetrol ? 1035 : 1299;\n  const deliveryFee = isPetrol ? 1000 : 999;\n  const itemTotal = basePrice * quantity;\n  const profit = profitPerUnit * quantity;\n  const total = itemTotal + deliveryFee + profit;\n\n  const invoice = isPetrol\n    ? `*🧾 Fuel Invoice – GasFeel*\\n\\n_*Order Summary:*_\\n• ${quantity} ${unit} of petrol: ₦${itemTotal}\\n• Delivery to ${street}: Just ₦${deliveryFee} *Only!*\\n• VAT: ₦0.00\\n--------------------------------------\\nTotal Amount: ₦${total}\\n--------------------------------------\\n\\n📌 Today’s Official Online Price:\\n° ₦${basePrice} per Liter\\n\\n*Payment Details:*\\n• 4987116876\\n• Moniepoint MFB\\n• GasFeel\\n\\n_Kindly send the payment receipt to confirm your order. One of our riders will be with you as soon as payment is confirmed. 🚴‍♂️💨_`\n    : `*🧾 Gas Invoice – GasFeel*\\n\\n_*Order Summary:*_\\n• ${quantity}${unit} Cooking Gas: ₦${itemTotal}\\n• Delivery Fee: Just ₦${deliveryFee} *Only!*\\n• VAT: ₦0.00\\n--------------------------------------\\nTotal Amount: ₦${total}\\n--------------------------------------\\n\\n📌 Today’s Official Online Price:\\n° ₦${basePrice} per kg\\n\\n*Payment Details:*\\n• 4987116876\\n• Moniepoint MFB\\n• GasFeel\\n\\n_Kindly send the payment receipt to confirm your order. One of our riders will be with you as soon as payment is confirmed. 🚴‍♂️💨_`;\n\n  return {\n    response: invoice\n  };\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        -285
+      ],
+      "id": "79922bbe-7c85-4549-9d7b-2e76adc9972c",
+      "name": "Generate Invoice",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "name": "validate_address",
+        "description": "Update or create a value in customer memory",
+        "jsCode": "function validate_address(args) {\n  const { address } = args;\n  const lower = address.toLowerCase();\n  const isValid =\n    address &&\n    address.length > 10 &&\n    (lower.includes('street') ||\n      lower.includes('road') ||\n      lower.includes('avenue') ||\n      lower.includes('close') ||\n      lower.includes('crescent'));\n\n  const message = isValid\n    ? ''\n    : 'Kindly provide a more detailed description of your address, so the rider can locate you faster! Thanks.';\n\n  return {\n    valid: isValid,\n    message\n  };\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -360,
+        -285
+      ],
+      "id": "fc6a2f58-bb59-444d-8b70-a28ed488be34",
+      "name": "Validate Adress",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "name": "generate_order_id",
+        "description": "Generates a unique order ID   ",
+        "jsCode": "function generate_order_id() {\n  const timestamp = Date.now();\n  const random = Math.floor(Math.random() * 10000);\n  const orderId = `GF${timestamp}-${random}`;\n  return {\n    response: orderId\n  };\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        -285
+      ],
+      "id": "6053206e-cc03-46be-acd6-e50433758701",
+      "name": "Generate order id",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "name": "get_field",
+        "description": "Retrieves a value from customer memory by field name",
+        "jsCode": "function get_field(args) {\n  const { field } = args;\n  const value = getMemory(field);\n  return typeof value === 'string' ? value : JSON.stringify(value || '');\n}\n\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -120,
+        -285
+      ],
+      "id": "7d0c5e05-6976-4c2a-b7be-057b59f7afd9",
+      "name": "Get Field",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "name": "clear_memory",
+        "description": "Clears all memory for the current customer",
+        "jsCode": "function clear_memory() {\n  clearMemory();\n  return '🧹 Memory cleared';\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -285
+      ],
+      "id": "c9e909bf-70a9-4717-8bd5-25c35160253f",
+      "name": "Clear Value",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "name": "fetch_template",
+        "description": "Fetches and formats a pre-defined message template",
+        "jsCode": "function fetch_template(args) {\n  const { key, data = {} } = args || {};\n  const userInput = $json.body || ''; // Access input from n8n context\n\n  const templates = {\n    welcome_new: \"*Oh, Hii!* 👋\\n_Welcome to GasFeel — your fast and reliable gas & petrol delivery service! 🤩_\\n\\n*To place an order, kindly share the following:*\\n• Your Name\\n• Cooking Gas or Petrol?\\n• Quantity\\n• Detailed Delivery Address\\n• Phone Number\\n\\n_Kindly provide the required details, and we’ll serve you in a blink of an eye! ⚡_\",\n    address_validation: \"Kindly provide a more detailed description of your address, so the rider can locate you faster! Thanks. ✅\",\n    invoice_petrol: \"*🧾 Fuel Invoice – GasFeel*\\n\\n_*Order Summary:_*\\n• {{quantity}} Liters of petrol: ₦{{itemTotal}}.00\\n• Delivery to {{street}}: Just ₦1,000.00 *Only!*\\n• VAT: ₦0.00\\n--------------------------------------\\nTotal Amount: ₦{{total}}.00\\n--------------------------------------\\n\\n📌 Today’s Official Online Price:\\n° ₦1,035 per Liter\\n\\n*Payment Details:*\\n• 4987116876\\n• Moniepoint MFB\\n• GasFeel\\n\\n_Kindly send the payment receipt to confirm your order. One of our riders will be with you as soon as payment is confirmed. 🚴‍♂️💨_\",\n    invoice_gas: \"*🧾 Gas Invoice – GasFeel*\\n\\n_*Order Summary:_*\\n• {{quantity}}kg Cooking Gas: ₦{{itemTotal}}.00\\n• Delivery Fee: Just ₦999.00 *Only!*\\n• VAT: ₦0.00\\n--------------------------------------\\nTotal Amount: ₦{{total}}.00\\n--------------------------------------\\n\\n📌 Today’s Official Online Price:\\n° ₦1,299 per kg\\n\\n*Payment Details:*\\n• 4987116876\\n• Moniepoint MFB\\n• GasFeel\\n\\n_Kindly send the payment receipt to confirm your order. One of our riders will be with you as soon as payment is confirmed. 🚴‍♂️💨_\",\n    thank_you_new: \"Thanks for choosing GasFeel, and don't forget to tell your friends about us 🤩\\nWe appreciate you 🔥❤️✨\",\n    thank_you_returning: \"Thanks for alwayssssss choosing GasFeel, and don't forget to tell more of your friends about us 🤩\"\n  };\n\n  // Match user input to template triggers\n  const matches = {\n    'hi|hello|start': 'welcome_new',\n    'i\\'ve paid|paid': 'payment_pending', // Placeholder until receipt logic\n    'thank you|thanks': 'thank_you_new',\n    'complaint|issue|problem|delay': 'complaint_received' // To be handled separately if needed\n  };\n\n  let matchedKey = key || Object.keys(matches).find(pattern => new RegExp(pattern, 'i').test(userInput)) || '';\n  if (!matchedKey && !templates[key]) {\n    return \"*Oops! 😅* Didn’t catch that. How can I assist you today? 💙\";\n  }\n\n  let template = templates[matches[matchedKey] || key] || '';\n  if (template.includes('{{itemTotal}}') || template.includes('{{total}}')) {\n    const { quantity = 0, product = 'petrol', street = 'XYZ' } = data;\n    const basePrice = product === 'petrol' ? 1035 : 1299;\n    const deliveryFee = product === 'petrol' ? 1000 : 999;\n    const itemTotal = quantity * basePrice;\n    const total = itemTotal + deliveryFee;\n    template = template.replace('{{itemTotal}}', itemTotal).replace('{{total}}', total).replace('{{street}}', street).replace('{{quantity}}', quantity);\n  }\n  for (const [k, v] of Object.entries(data)) {\n    template = template.replace(new RegExp(`{{${k}}}`, 'g'), v || '');\n  }\n\n  return template;\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        120,
+        -285
+      ],
+      "id": "2d854b1b-efbc-4db5-b5f4-e50329bb029c",
+      "name": "Fetch Template",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1080,
+        -285
+      ],
+      "id": "7f925b97-865b-43f7-8bac-4b43ebedecc0",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "H4nARa2CG3gGNcRH",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52eb6ca2-fdd0-48a3-abf8-b00e8bacd697",
+              "name": "senderName",
+              "value": "={{ $json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "985da53a-7afc-45da-aed4-f0bd8159a1bf",
+              "name": "sessionId",
+              "value": "={{ $json.messages[0].from }}",
+              "type": "string"
+            },
+            {
+              "id": "049a8b17-d899-4713-bf54-33ae7000c89e",
+              "name": "chatInput",
+              "value": "={{ $json.messages[0].text.body }}",
+              "type": "string"
+            },
+            {
+              "id": "b1b854ad-3e21-40fd-9de7-2d5a1688fbf3",
+              "name": "messages[0].document",
+              "value": "={{ $json.messages[0].document }}",
+              "type": "object"
+            },
+            {
+              "id": "99b546b1-1750-43bf-a247-e0d63e8446c9",
+              "name": "messages[0].type",
+              "value": "={{ $json.messages[0].type }}",
+              "type": "string"
+            },
+            {
+              "id": "c73b5870-5247-4890-a5f7-3c208a2053f6",
+              "name": "messages[0].type",
+              "value": "={{ $json.messages[0].type }}",
+              "type": "string"
+            },
+            {
+              "id": "d1787dc3-f239-4485-9c44-7c5d24e95c8d",
+              "name": "messages[0].image",
+              "value": "={{ $json.messages[0].image }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2400,
+        -500
+      ],
+      "id": "8ba0d47c-1a70-45e6-8e52-dfaac0e0ffd5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTimeTool",
+      "typeVersion": 2,
+      "position": [
+        240,
+        -285
+      ],
+      "id": "4f4f5ef6-c3ad-402d-9c06-e2ad1adcb2be",
+      "name": "Date & Time"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {
+          "sender": "Moniepoint"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        360,
+        -285
+      ],
+      "id": "27215175-c01c-4304-80a2-1c42dc6ed5bf",
+      "name": "Confirm_Receipt",
+      "webhookId": "8470f793-53bf-4220-b706-4db716271563",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gS2qW6KieQdXUZ7L",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o",
+          "mode": "list",
+          "cachedResultName": "GasFeel_Operational_Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 961525237,
+          "mode": "list",
+          "cachedResultName": "Supplier Price",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit#gid=961525237"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        480,
+        -285
+      ],
+      "id": "3728b806-ae03-45b8-aaca-c982732bd33e",
+      "name": "Pricing_Config_Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "u3HhQUsPnh3LPE45",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ocr.space/parse/image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "K86491425188957"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "language",
+              "value": "eng"
+            },
+            {
+              "name": "isOverlayRequired",
+              "value": "true"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        -280
+      ],
+      "id": "159e0d7b-e41c-4958-8c8f-707cb211d3d8",
+      "name": "OCR _SCANNER"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o",
+          "mode": "list",
+          "cachedResultName": "GasFeel_Operational_Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1344412752,
+          "mode": "list",
+          "cachedResultName": "Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit#gid=1344412752"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Day",
+              "displayName": "Day",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Type",
+              "displayName": "Order Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount (Kg/Liters)",
+              "displayName": "Amount (Kg/Liters)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Area",
+              "displayName": "Order Area",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rider Name",
+              "displayName": "Rider Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Time",
+              "displayName": "Order Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fulfillment Start Time",
+              "displayName": "Fulfillment Start Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Completion Time",
+              "displayName": "Order Completion Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Initiation Time (mins)",
+              "displayName": "Order Initiation Time (mins)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Fulfillment Time (mins)",
+              "displayName": "Order Fulfillment Time (mins)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total Time (mins)",
+              "displayName": "Total Time (mins)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Station",
+              "displayName": "Station",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Comments",
+              "displayName": "Comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cost Price per kg/liter (Naira)",
+              "displayName": "Cost Price per kg/liter (Naira)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "COGS (Naira)",
+              "displayName": "COGS (Naira)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Selling Price (Naira)",
+              "displayName": "Selling Price (Naira)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        720,
+        -285
+      ],
+      "id": "b636990d-792c-4936-b096-d7029ece1c49",
+      "name": "Order_sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "u3HhQUsPnh3LPE45",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1500,
+        -580
+      ],
+      "id": "6f833215-796d-46bc-a244-4bb07af50726",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.chatInput }}",
+                    "rightValue": "=document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c26fcfbb-ecee-4d09-8180-1cdf77ff960a"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Pdf"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "51c26a77-d919-4a20-ab06-5391c2707da3",
+                    "leftValue": "={{ $json.chatInput }}",
+                    "rightValue": "=",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "af420547-faa6-43e9-b1a8-d938d742ff91",
+                    "leftValue": "={{ $json.messages[0].type }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -2180,
+        -500
+      ],
+      "id": "64e53a49-615b-44fc-994c-de5b663a9887",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "mediaUrlGet",
+        "mediaGetId": "={{ $json.messages[0].document.id }}"
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        -1960,
+        -580
+      ],
+      "id": "46710a0b-36b7-479d-896b-efd7312fb656",
+      "name": "Download media",
+      "webhookId": "938540e2-a092-4447-9e39-e8bed8327405",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1740,
+        -580
+      ],
+      "id": "417be330-cfef-40ed-bfdd-a229190b0f4d",
+      "name": "HTTP Request",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "mediaUrlGet",
+        "mediaGetId": "={{ $json.messages[0].image.id }}"
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        -1900,
+        -360
+      ],
+      "id": "dbb93e8f-31aa-4c33-9bc9-14720a2c7d01",
+      "name": "Download media1",
+      "webhookId": "938540e2-a092-4447-9e39-e8bed8327405",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "whatsAppApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1680,
+        -360
+      ],
+      "id": "d9ce9f9e-87e7-436b-a65e-6dad4697c06a",
+      "name": "HTTP Request1",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vision.googleapis.com/v1/images:annotate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": " AIzaSyD0gvzLkR5r3ZkiKVceepiVSuYYp-1wF2Y"
+            },
+            {
+              "name": "x-goog-user-project",
+              "value": "n8n-cloud-464713"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"requests\": [\n    {\n      \"image\": {\n        \"content\": \"{{ $binary.data.data }}\"\n      },\n      \"features\": [\n        {\n          \"type\": \"TEXT_DETECTION\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1400,
+        -360
+      ],
+      "id": "5415b51a-6992-4296-9e94-5f022adf77ce",
+      "name": "OCR SCANNER"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONVERSATIONAL AI": {
+      "main": [
+        [
+          {
+            "node": "CUSTOMER LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Field": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "admin_escalation_workflow": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delivery_agent_workflow": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Invoice": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Adress": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate order id": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Field": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Value": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Template": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date & Time": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm_Receipt": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pricing_Config_Sheet": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR _SCANNER": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order_sheet": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Download media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download media1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download media": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download media1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "OCR SCANNER",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "679bc31e-7afd-43f9-b81a-38f0712708d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29b19c6fe5a2ca6da8cc8c9527da2ae7f618e7331b70a16ff335ebaadbf61fc6"
+  },
+  "id": "8a3YqCyF6G2J1COO",
+  "tags": []
+}

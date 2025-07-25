@@ -1,0 +1,151 @@
+{
+  "name": "LinkedIn Lead Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "everyDay",
+        "hour": "8",
+        "minute": "0",
+        "cronTimeZone": "Africa/Lagos"
+      },
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.phantombuster.com/api/v2/agents/{{PHANTOM_ID}}/launch",
+        "method": "POST",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": {
+          "sessionCookie": "{{PHANTOMBUSTER_API_KEY}}",
+          "argument": {
+            "query": "SDR Manager US SaaS 50-200 employees"
+          }
+        },
+        "headerParametersJson": {
+          "X-Phantombuster-Key": "{{PHANTOMBUSTER_API_KEY}}"
+        }
+      },
+      "name": "Launch Phantom",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.phantombuster.com/api/v2/agents/{{PHANTOM_ID}}/output",
+        "method": "GET",
+        "responseFormat": "json",
+        "headerParametersJson": {
+          "X-Phantombuster-Key": "{{PHANTOMBUSTER_API_KEY}}"
+        }
+      },
+      "name": "Get Phantom Output",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = $json[\"data\"] || $json[\"result\"];\nreturn data.map(item => ({ json: item }));"
+      },
+      "name": "Extract Profiles",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "{{GOOGLE_SHEET_ID}}",
+        "range": "Raw!A:F",
+        "valueInputMode": "RAW",
+        "values": [
+          [
+            "{{$json.fullName}}",
+            "{{$json.headline}}",
+            "{{$json.companyName}}",
+            "{{$json.publicProfileUrl}}",
+            "{{$json.companySize}}",
+            "New"
+          ]
+        ]
+      },
+      "name": "Add to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIALS_ID",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Launch Phantom",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Launch Phantom": {
+      "main": [
+        [
+          {
+            "node": "Get Phantom Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Phantom Output": {
+      "main": [
+        [
+          {
+            "node": "Extract Profiles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Profiles": {
+      "main": [
+        [
+          {
+            "node": "Add to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

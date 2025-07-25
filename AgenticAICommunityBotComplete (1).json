@@ -1,0 +1,168 @@
+{
+  "name": "Agentic AI Community Bot (Complete)",
+  "nodes": [
+    {
+      "parameters": {
+        "interval": "1 day"
+      },
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [\n  { json:{platform:'Facebook',domain:'facebook.com/groups',keyword:'AI Startups'} },\n  { json:{platform:'Reddit',domain:'reddit.com/r',keyword:'AIStartups'} },\n  { json:{platform:'LinkedIn',domain:'linkedin.com/groups',keyword:'AI Startups'} }\n];"
+      },
+      "name": "Set Platform Queries",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://serper.dev/search",
+        "method": "POST",
+        "jsonParameters": true,
+        "headers": {
+          "X-API-KEY": "YOUR_SERPER_API_KEY",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "q": "site:{{$json.domain}} {{$json.keyword}}"
+        }
+      },
+      "name": "Serper.dev Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = $json.organic || [];\nreturn results.map(r => ({ json:{\n  platform: $item(0).$node['Set Platform Queries'].json.platform,\n  title:    r.title,\n  url:      r.link,\n  snippet:  r.snippet\n}}));"
+      },
+      "name": "Parse Search Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "https://app.scrapingbee.com/api/v1/",
+        "method": "GET",
+        "responseFormat": "json",
+        "jsonParameters": false,
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "api_key",
+              "value": "YOUR_SCRAPINGBEE_KEY"
+            },
+            {
+              "name": "url",
+              "value": "={{$json.url}}"
+            },
+            {
+              "name": "render_js",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "name": "Scrape Member Count & Description",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const html = $json.body;\nconst matchCount = html.match(/(\\d[\\d,]*?) members/i);\nconst memberCount = matchCount ? matchCount[1].replace(/,/g, '') : '';\nconst descMatch = html.match(/<meta name=\\\"description\\\" content=\\\"([^\\\"]+)\\\"/i);\nconst description = descMatch ? descMatch[1] : '';\nreturn [{ json:{\n  platform: $json.platform,\n  title: $json.title,\n  url: $json.url,\n  snippet: $json.snippet,\n  memberCount: memberCount,\n  description: description\n}}];"
+      },
+      "name": "Extract Count & Full Description",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "chat",
+        "model": "gpt-4",
+        "temperature": 0.7,
+        "messages": [
+          {
+            "role": "system",
+            "content": "You\u2019re an expert at rating community relevance."
+          },
+          {
+            "role": "user",
+            "content": "Rate from 1\u201310 how relevant this {{$json.platform}} community is to AI startup founders:\n\nTitle: {{$json.title}}\n\nMember Count: {{$json.memberCount}}\n\nDescription: {{$json.description}}"
+          }
+        ]
+      },
+      "name": "Rate Relevance",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ parseInt($json.choices[0].message.content.trim(),10) }}",
+              "operation": "largerEqual",
+              "value2": 7
+            }
+          ]
+        }
+      },
+      "name": "Filter High Relevance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "Groups!A:G",
+        "valueInputMode": "RAW",
+        "values": "={{[ $json.platform, $json.title, $json.url, $json.memberCount, $json.description, parseInt($json.choices[0].message.content.trim(),10) ]}}"
+      },
+      "name": "Save Discovery",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        100
+      ]
+    }
+  ],
+  "connections": {}
+}

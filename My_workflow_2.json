@@ -1,0 +1,317 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2adb5600-2e07-454e-9a50-cdb5156a0d0f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        -20
+      ],
+      "id": "65994dcf-e9c2-417d-a8df-382b86d35e19",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        480,
+        -20
+      ],
+      "id": "60ac0a0d-fd9a-4632-a977-a243ca82c6e6",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        1820,
+        140
+      ],
+      "id": "3e6ef97f-ebc8-420b-a6f3-2c877be16b16"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek/deepseek-r1-0528-qwen3-8b:free\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a fact-based summarizer. Only provide the summary—no explanations or commentary. Return exactly in this format:\\n\\nTitle: <Best Video SEO Title>\\n\\nBullets:\\n- bullet point 1\\n- bullet point 2\\n- bullet point 3\\n...\\n- bullet point 10\\n\\nMake sure the title line starts with 'Title:' and the bullet points each start with a hyphen and a space. Do NOT include any other text.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Here is the article:\\n\\n{{ $json.title }}\\n\\n{{ $json.content }}\\n\\nPlease summarize it in 10 bullet points using only information directly from the text, and provide a best video SEO title at the top exactly as described.\"\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        40
+      ],
+      "id": "2b0e48db-775e-48a5-9ed6-3db916f6035d",
+      "name": "HTTP Request",
+      "credentials": {
+        "openRouterApi": {
+          "id": "hpfjzBIlnvTWjc1P",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"deepseek/deepseek-r1-0528-qwen3-8b:free\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an expert at writing Scriptimate (.smte) animation scripts. Given a video title and up to three bullet points, generate a valid .smte file that:\\n1. Sets canvas size to 1280×720.\\n2. Displays the title at top center in font size 48.\\n3. Animates each bullet one after another with:\\n   • Fade in over 0.5s,\\n   • Hold fully visible for 2s,\\n   • Fade out over 0.5s,\\n   • Slide up from 50px below final position as it fades in.\\n4. Uses a clean sans-serif font (e.g., Arial).\\n5. Runs total duration 10 seconds, and fades out the title over the last 1 second.\\n\\nReturn only the .smte script—no extra explanation or commentary.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Title: {{ $json.seoTitle }}\\n\\nBullet Points:\\n{{ $json.bulletPoints }}\\n\\nGenerate the complete .smte file now.\"\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        -20
+      ],
+      "id": "638720c7-cdf0-4241-bbbd-f91bce0ddec8",
+      "name": "HTTP Request2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "hpfjzBIlnvTWjc1P",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the content string from the previous node\nconst content = $input.first().json.choices[0].message.content;\n\n// Extract the title line starting with \"Title:\"\nconst titleLine = content.split('\\n').find(line => line.startsWith('Title:'));\nconst seoTitle = titleLine ? titleLine.replace('Title:', '').trim() : '';\n\n// Extract bullet points after the line \"Bullets:\"\nconst bulletsIndex = content.indexOf('Bullets:');\nlet bulletPoints = [];\nif (bulletsIndex !== -1) {\n  const bulletText = content.slice(bulletsIndex + 'Bullets:'.length).trim();\n  bulletPoints = bulletText.split('\\n')\n    .filter(line => line.trim().startsWith('- '))\n    .map(line => line.replace(/^- /, '').trim());\n}\n\nreturn [\n  {\n    json: {\n      seoTitle,\n      bulletPoints\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        40
+      ],
+      "id": "108ae4af-2bc0-4fc5-9ee5-1cf31790e43f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the title from the previous node’s JSON\nconst title = $('Code').first().json.seoTitle;\n\n// Get the bulletPoints array (assumed to be an Array<String>)\nconst bulletsArray = $('Code').first().json.bulletPoints;\n\n// Join into a single sentence string for TTS\nconst bulletText = Array.isArray(bulletsArray)\n  ? bulletsArray.join(\". \")\n  : bulletsArray\n      .split(\"\\n\")\n      .map(line => line.replace(/^•\\s*/, \"\").trim())\n      .filter(Boolean)\n      .join(\". \");\n\nconst fullScript = `${title}. ${bulletText}.`;\n\nreturn [\n  {\n    json: {\n      ttsScript: fullScript\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        120
+      ],
+      "id": "2726b0df-eecb-48da-8f8e-f9bd9af4b2f3",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5000/api/tts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.ttsScript }}\",\n  \"speaker_id\": 1\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        120
+      ],
+      "id": "4015081b-3338-4283-bc93-feb32b9bb418",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        1620,
+        100
+      ],
+      "id": "966c6aed-f1bb-49a7-9e03-b2897f3c0b71",
+      "name": "YouTube",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "8SXjwZyEX9hXvPSI",
+          "name": "YouTube account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube": {
+      "main": [
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cdca466a-36f8-4122-87aa-37c929304821",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "66d93edf89e5c52d8c4a63f838db7a651a3fd66523d6ecde0bc61ecc26f063cf"
+  },
+  "id": "s3NrHw7P7InaJh2B",
+  "tags": []
+}

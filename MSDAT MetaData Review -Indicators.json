@@ -1,0 +1,519 @@
+﻿{
+  "created": "1747434532293",
+  "updated": "1747434532293",
+  "name": "MSDAT MetaData Review -Indicators",
+  "description": "",
+  "tags": [],
+  "pieces": [
+    "@activepieces/piece-google-sheets",
+    "@activepieces/piece-math-helper"
+  ],
+  "template": {
+    "displayName": "MSDAT MetaData Review -Indicators",
+    "trigger": {
+      "name": "trigger",
+      "valid": true,
+      "displayName": "New or Updated Row",
+      "type": "PIECE_TRIGGER",
+      "settings": {
+        "pieceName": "@activepieces/piece-google-sheets",
+        "pieceVersion": "~0.12.2",
+        "pieceType": "OFFICIAL",
+        "packageType": "REGISTRY",
+        "input": {
+          "auth": "{{connections['AI-drive-GoogleSheets']}}",
+          "sheetId": 0,
+          "spreadsheetId": "1u672SjosAVIk4CQR6Hw61nS8yZkU0GBV4E08_8jnK2c",
+          "trigger_column": "A",
+          "includeTeamDrives": true
+        },
+        "inputUiInfo": {
+          "customizedInputs": {}
+        },
+        "triggerName": "google-sheets-new-or-updated-row"
+      },
+      "nextAction": {
+        "name": "step_11",
+        "skip": false,
+        "type": "CODE",
+        "valid": true,
+        "settings": {
+          "input": {},
+          "sourceCode": {
+            "code": "export const code = async () => {\n  const startTime = Date.now(); // Capture start time\n  return { message: \"Timer started\", startTime }; // Return startTime so it can be stored externally\n};",
+            "packageJson": "{\n  \"dependencies\": {\n    \"@activepieces/pieces-common\": \"0.4.3\"\n  }\n}"
+          },
+          "inputUiInfo": {
+            "customizedInputs": {}
+          },
+          "errorHandlingOptions": {
+            "retryOnFailure": {
+              "value": false
+            },
+            "continueOnFailure": {
+              "value": false
+            }
+          }
+        },
+        "nextAction": {
+          "name": "step_13",
+          "skip": false,
+          "type": "PIECE",
+          "valid": true,
+          "settings": {
+            "input": {
+              "first_number": "68",
+              "second_number": "10000"
+            },
+            "pieceName": "@activepieces/piece-math-helper",
+            "pieceType": "OFFICIAL",
+            "actionName": "generateRandom_math",
+            "inputUiInfo": {
+              "customizedInputs": {}
+            },
+            "packageType": "REGISTRY",
+            "pieceVersion": "~0.0.11",
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_3",
+            "skip": false,
+            "type": "PIECE",
+            "valid": true,
+            "settings": {
+              "input": {
+                "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                "memKey": "{{step_13}}",
+                "sheetId": 1782976694,
+                "startRow": 1,
+                "groupSize": "10000",
+                "spreadsheetId": "1No7oRZIomJJ2UcdVSUO7G48QgBgY1-GazW4-ZEj6rqc",
+                "includeTeamDrives": true
+              },
+              "pieceName": "@activepieces/piece-google-sheets",
+              "pieceType": "OFFICIAL",
+              "actionName": "get_next_rows",
+              "inputUiInfo": {
+                "customizedInputs": {}
+              },
+              "packageType": "REGISTRY",
+              "pieceVersion": "~0.12.2",
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            },
+            "nextAction": {
+              "name": "step_4",
+              "skip": false,
+              "type": "CODE",
+              "valid": true,
+              "settings": {
+                "input": {
+                  "indicators": "{{step_3}}"
+                },
+                "sourceCode": {
+                  "code": "export const code = async (context: { indicators?: any[] }): Promise<any> => {\n  console.log(\"Received context:\", context);\n\n  const rows = context.indicators || [];\n  const issues = [];\n\n  const isHeaderRow = (values: any): boolean => {\n    return (\n      (values.A && values.A.trim().toLowerCase() === 'id') ||\n      (values.B && values.B.trim().toLowerCase() === 'full_name')\n    );\n  };\n\n  const positiveSlopes = ['positive', 'upwards', 'increased'];\n  const recommendedIndicatorTypes = ['input', 'output', 'outcome'];\n\n  rows.forEach((row, index) => {\n    const rowNumber = index + 1;\n    const values = row.values || {};\n\n    if (isHeaderRow(values)) return;\n\n    const rowErrors: string[] = [];\n\n    // Validate full_name (Column B)\n    if (!values.B || typeof values.B !== 'string' || values.B.trim() === '') {\n      rowErrors.push('Missing full_name (Column B)');\n    } else {\n      const fullName = values.B.trim();\n      if (fullName.length < 5) rowErrors.push('full_name is too short (Column B)');\n      if (!/^[A-Z]/.test(fullName)) rowErrors.push('full_name should start with an uppercase letter (Column B)');\n    }\n\n    // Validate short_name (Column C)\n    if (!values.C || typeof values.C !== 'string' || values.C.trim() === '') {\n      rowErrors.push('Missing short_name (Column C)');\n    } else {\n      const shortName = values.C.trim();\n      if (shortName.length < 3) rowErrors.push('short_name is too short (Column C)');\n      if (values.B && shortName === values.B.trim()) {\n        rowErrors.push('short_name should differ from full_name (Column C)');\n      }\n    }\n\n    // Validate factor (Column D)\n    if (!values.D || typeof values.D !== 'string' || values.D.trim() === '') {\n      rowErrors.push('Missing factor (Column D)');\n    } else {\n      const factorNumeric = Number(values.D.trim().replace(/[%\\s]+/g, ''));\n      if (isNaN(factorNumeric) || factorNumeric <= 0) {\n        rowErrors.push('Factor must be a valid number greater than 0 (Column D)');\n      }\n    }\n\n    // Validate desirable_slope (Column E)\n    if (!values.E || typeof values.E !== 'string' || values.E.trim() === '') {\n      rowErrors.push('Missing desirable_slope (Column E)');\n    } else {\n      const slope = values.E.trim().toLowerCase();\n      const combinedName = ((values.B || '') + ' ' + (values.C || '')).toLowerCase();\n      if (combinedName.includes('pharmaceutical dependency') && !positiveSlopes.includes(slope)) {\n        rowErrors.push('For pharmaceutical dependency indicators, desirable_slope should be positive (Column E)');\n      }\n    }\n\n    // Validate indicator_type (Column F)\n    if (!values.F || typeof values.F !== 'string' || values.F.trim() === '') {\n      rowErrors.push('Missing indicator_type (Column F)');\n    } else {\n      const type = values.F.trim().toLowerCase();\n      if (!recommendedIndicatorTypes.includes(type)) {\n        rowErrors.push(`Indicator_type \"${values.F.trim()}\" is not one of the recommended types: ${recommendedIndicatorTypes.join(', ')} (Column F)`);\n      }\n    }\n\n    // Validate program_area (Column G)\n    if (!values.G || typeof values.G !== 'string' || values.G.trim() === '') {\n      rowErrors.push('Missing program_area (Column G)');\n    } else {\n      const programArea = values.G.trim();\n      if (!/^[A-Z]/.test(programArea)) {\n        rowErrors.push('program_area should start with an uppercase letter (Column G)');\n      }\n    }\n\n    // Validate national_target (Column H)\n    if (values.H && typeof values.H === 'string' && values.H.trim() !== '') {\n      const ntStr = values.H.trim().replace('%', '');\n      if (isNaN(Number(ntStr))) {\n        rowErrors.push('national_target must be numeric or a valid percentage (Column H)');\n      }\n    }\n\n    // Validate national_source (Column I)\n    if (values.I && typeof values.I === 'string' && values.I.trim() === '') {\n      rowErrors.push('national_source is provided but empty (Column I)');\n    }\n\n    // Validate national_information (Column J)\n    if (values.J && typeof values.J === 'string' && values.J.trim() !== '' && values.J.trim().length < 20) {\n      rowErrors.push('national_information is too short (Column J)');\n    }\n\n    // Validate sdg_target (Column K)\n    if (values.K && typeof values.K === 'string' && values.K.trim() === '') {\n      rowErrors.push('sdg_target is provided but empty (Column K)');\n    }\n\n    // Validate sdg_information (Column L)\n    if (values.L && typeof values.L === 'string' && values.L.trim() !== '' && values.L.trim().length < 20) {\n      rowErrors.push('sdg_information is too short (Column L)');\n    }\n\n    // Validate Sub Dashboard (Column Q)\n    if (values.Q && typeof values.Q === 'string' && values.Q.trim() === '') {\n      rowErrors.push('Sub Dashboard is provided but empty (Column Q)');\n    }\n\n    // Validate Related Sub Dashboard (Column R)\n    if (values.R && typeof values.R === 'string' && values.R.trim() === '') {\n      rowErrors.push('Related Sub Dashboard is provided but empty (Column R)');\n    }\n\n    // Always add the row even if there are no errors (optional)\n    issues.push({\n      row: rowNumber,\n      errors: rowErrors,\n      values: values\n    });\n  });\n\n  return {\n    output: issues\n  };\n};\n",
+                  "packageJson": "{}"
+                },
+                "inputUiInfo": {
+                  "customizedInputs": {}
+                },
+                "errorHandlingOptions": {
+                  "retryOnFailure": {
+                    "value": false
+                  },
+                  "continueOnFailure": {
+                    "value": false
+                  }
+                }
+              },
+              "nextAction": {
+                "name": "step_7",
+                "skip": false,
+                "type": "LOOP_ON_ITEMS",
+                "valid": true,
+                "settings": {
+                  "items": "{{step_4['output']}}",
+                  "inputUiInfo": {
+                    "customizedInputs": {}
+                  }
+                },
+                "displayName": "Loop on Items",
+                "firstLoopAction": {
+                  "name": "step_10",
+                  "skip": false,
+                  "type": "CODE",
+                  "valid": true,
+                  "settings": {
+                    "input": {
+                      "startTime": "{{step_11['startTime']}}"
+                    },
+                    "sourceCode": {
+                      "code": "export const code = async (inputs) => {\n  if (!inputs.startTime) return { elapsedTime: 0 }; // If no startTime is passed, return 0\n  const elapsedTime = Math.floor((Date.now() - inputs.startTime) / 1000);\n  return { elapsedTime };\n};",
+                      "packageJson": "{\n  \"dependencies\": {\n  }\n}"
+                    },
+                    "inputUiInfo": {
+                      "customizedInputs": {}
+                    },
+                    "errorHandlingOptions": {
+                      "retryOnFailure": {
+                        "value": false
+                      },
+                      "continueOnFailure": {
+                        "value": false
+                      }
+                    }
+                  },
+                  "nextAction": {
+                    "name": "step_6",
+                    "skip": false,
+                    "type": "ROUTER",
+                    "valid": true,
+                    "children": [
+                      {
+                        "name": "step_5",
+                        "skip": false,
+                        "type": "ROUTER",
+                        "valid": true,
+                        "children": [
+                          {
+                            "name": "step_1",
+                            "skip": false,
+                            "type": "PIECE",
+                            "valid": true,
+                            "settings": {
+                              "input": {
+                                "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                                "values": {
+                                  "A": "{{step_7['item']['values']['A']}}",
+                                  "B": "{{step_7['item']['values']['B']}}",
+                                  "C": "{{step_7['item']['values']['C']}}",
+                                  "D": "{{step_7['item']['values']['D']}}",
+                                  "E": "{{step_7['item']['values']['E']}}",
+                                  "F": "{{step_7['item']['values']['F']}}",
+                                  "G": "{{step_7['item']['values']['G']}}",
+                                  "H": "{{step_7['item']['values']['H']}}",
+                                  "I": "{{step_7['item']['values']['I']}}",
+                                  "J": "{{step_7['item']['values']['J']}}",
+                                  "K": "{{step_7['item']['values']['K']}}",
+                                  "L": "{{step_7['item']['values']['L']}}",
+                                  "M": "{{step_7['item']['values']['M']}}",
+                                  "N": "{{step_7['item']['values']['N']}}",
+                                  "O": "{{step_7['item']['values']['O']}}",
+                                  "P": "{{step_7['item']['values']['P']}}",
+                                  "Q": "{{step_7['item']['values']['Q']}}",
+                                  "R": "{{step_7['item']['values']['R']}}",
+                                  "S": "{{step_7['item']['errors']}}"
+                                },
+                                "sheetId": 587419795,
+                                "as_string": false,
+                                "spreadsheetId": "1Gd7cGdmsVqmVvPgWuQOqUxqBBF-Kl-DYPysMvl2uLI0",
+                                "first_row_headers": true,
+                                "includeTeamDrives": true
+                              },
+                              "pieceName": "@activepieces/piece-google-sheets",
+                              "pieceType": "OFFICIAL",
+                              "actionName": "insert_row",
+                              "inputUiInfo": {
+                                "schema": {
+                                  "values": {
+                                    "A": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "193",
+                                      "displayName": "193",
+                                      "defaultValue": ""
+                                    },
+                                    "B": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Budget Allocation to Health",
+                                      "displayName": "Budget Allocation to Health",
+                                      "defaultValue": ""
+                                    },
+                                    "C": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Total Budget Allocation to Health",
+                                      "displayName": "Total Budget Allocation to Health",
+                                      "defaultValue": ""
+                                    },
+                                    "D": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "1",
+                                      "displayName": "1",
+                                      "defaultValue": ""
+                                    },
+                                    "E": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Positive",
+                                      "displayName": "Positive",
+                                      "defaultValue": ""
+                                    },
+                                    "F": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Input",
+                                      "displayName": "Input",
+                                      "defaultValue": ""
+                                    },
+                                    "G": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Health Financing",
+                                      "displayName": "Health Financing",
+                                      "defaultValue": ""
+                                    },
+                                    "H": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "national_target",
+                                      "displayName": "national_target",
+                                      "defaultValue": ""
+                                    },
+                                    "I": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "national_source",
+                                      "displayName": "national_source",
+                                      "defaultValue": ""
+                                    },
+                                    "J": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "national_information",
+                                      "displayName": "national_information",
+                                      "defaultValue": ""
+                                    },
+                                    "K": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "sdg_target",
+                                      "displayName": "sdg_target",
+                                      "defaultValue": ""
+                                    },
+                                    "L": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "sdg_information",
+                                      "displayName": "sdg_information",
+                                      "defaultValue": ""
+                                    },
+                                    "M": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Percentage allocation to Health (Released)",
+                                      "displayName": "Percentage allocation to Health (Released)",
+                                      "defaultValue": ""
+                                    },
+                                    "N": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Percentage personnel allocation to Health (Released)",
+                                      "displayName": "Percentage personnel allocation to Health (Released)",
+                                      "defaultValue": ""
+                                    },
+                                    "O": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "third_related",
+                                      "displayName": "third_related",
+                                      "defaultValue": ""
+                                    },
+                                    "P": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "fourth_related",
+                                      "displayName": "fourth_related",
+                                      "defaultValue": ""
+                                    },
+                                    "Q": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Health_Financing",
+                                      "displayName": "Health_Financing",
+                                      "defaultValue": ""
+                                    },
+                                    "R": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "Related Sub Dashboard",
+                                      "displayName": "Related Sub Dashboard",
+                                      "defaultValue": ""
+                                    },
+                                    "S": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "[]",
+                                      "displayName": "[]",
+                                      "defaultValue": ""
+                                    },
+                                    "T": {
+                                      "type": "SHORT_TEXT",
+                                      "required": false,
+                                      "description": "warninig 1",
+                                      "displayName": "warninig 1",
+                                      "defaultValue": ""
+                                    }
+                                  }
+                                },
+                                "customizedInputs": {}
+                              },
+                              "packageType": "REGISTRY",
+                              "pieceVersion": "~0.12.2",
+                              "errorHandlingOptions": {
+                                "retryOnFailure": {
+                                  "value": false
+                                },
+                                "continueOnFailure": {
+                                  "value": false
+                                }
+                              }
+                            },
+                            "displayName": "Insert Row"
+                          },
+                          null
+                        ],
+                        "settings": {
+                          "branches": [
+                            {
+                              "branchName": "Branch 1",
+                              "branchType": "CONDITION",
+                              "conditions": [
+                                [
+                                  {
+                                    "operator": "NUMBER_IS_GREATER_THAN",
+                                    "firstValue": "{{step_7['index']}}",
+                                    "secondValue": "{{trigger['values']['A']}}"
+                                  }
+                                ]
+                              ]
+                            },
+                            {
+                              "branchName": "Otherwise",
+                              "branchType": "FALLBACK"
+                            }
+                          ],
+                          "inputUiInfo": {
+                            "customizedInputs": {}
+                          },
+                          "executionType": "EXECUTE_FIRST_MATCH"
+                        },
+                        "displayName": "Router"
+                      },
+                      {
+                        "name": "step_8",
+                        "skip": false,
+                        "type": "PIECE",
+                        "valid": true,
+                        "settings": {
+                          "input": {
+                            "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                            "row_id": "{{trigger['row']}}",
+                            "values": {
+                              "A": "{{trigger['values']['A']}}"
+                            },
+                            "sheetId": 0,
+                            "spreadsheetId": "1u672SjosAVIk4CQR6Hw61nS8yZkU0GBV4E08_8jnK2c",
+                            "first_row_headers": true,
+                            "includeTeamDrives": true
+                          },
+                          "pieceName": "@activepieces/piece-google-sheets",
+                          "pieceType": "OFFICIAL",
+                          "actionName": "update_row",
+                          "inputUiInfo": {
+                            "schema": {
+                              "values": {
+                                "A": {
+                                  "type": "SHORT_TEXT",
+                                  "required": false,
+                                  "description": "Last Index 1",
+                                  "displayName": "Last Index 1",
+                                  "defaultValue": ""
+                                },
+                                "B": {
+                                  "type": "SHORT_TEXT",
+                                  "required": false,
+                                  "description": "Last Index 2",
+                                  "displayName": "Last Index 2",
+                                  "defaultValue": ""
+                                }
+                              }
+                            },
+                            "customizedInputs": {}
+                          },
+                          "packageType": "REGISTRY",
+                          "pieceVersion": "~0.12.2",
+                          "errorHandlingOptions": {
+                            "retryOnFailure": {
+                              "value": false
+                            },
+                            "continueOnFailure": {
+                              "value": false
+                            }
+                          }
+                        },
+                        "displayName": "Update Row"
+                      }
+                    ],
+                    "settings": {
+                      "branches": [
+                        {
+                          "branchName": "Branch 1",
+                          "branchType": "CONDITION",
+                          "conditions": [
+                            [
+                              {
+                                "operator": "NUMBER_IS_LESS_THAN",
+                                "firstValue": "{{step_10['elapsedTime']}}",
+                                "secondValue": "590"
+                              }
+                            ]
+                          ]
+                        },
+                        {
+                          "branchName": "Otherwise",
+                          "branchType": "FALLBACK"
+                        }
+                      ],
+                      "inputUiInfo": {
+                        "customizedInputs": {}
+                      },
+                      "executionType": "EXECUTE_FIRST_MATCH"
+                    },
+                    "displayName": "Router"
+                  },
+                  "displayName": "Get elapsed time"
+                }
+              },
+              "displayName": "Indicators Error Flagging Code"
+            },
+            "displayName": "Get indicators"
+          },
+          "displayName": "Generate Random Number"
+        },
+        "displayName": "start counter Copy Copy"
+      }
+    },
+    "valid": true,
+    "connectionIds": [
+      "AI-drive-GoogleSheets"
+    ],
+    "schemaVersion": "1"
+  },
+  "blogUrl": ""
+}

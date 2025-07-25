@@ -1,0 +1,93 @@
+{
+  "name": "CUSTOMER THANK YOU FLOW",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o",
+          "mode": "list",
+          "cachedResultName": "GasFeel_Operational_Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 813049333,
+          "mode": "list",
+          "cachedResultName": "Delievery Time ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit#gid=813049333"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "10fb13e5-29b5-42d6-bca0-38f5db61be26",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "WAaCcjY2Dmc0jWW4",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "b36e9516-6770-489f-8558-e4603be11eb2",
+      "name": "HTTP Request",
+      "credentials": {
+        "openRouterApi": {
+          "id": "H4nARa2CG3gGNcRH",
+          "name": "OpenRouter account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5355b4b2-1408-49b7-a7f7-76e0024bace3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29b19c6fe5a2ca6da8cc8c9527da2ae7f618e7331b70a16ff335ebaadbf61fc6"
+  },
+  "id": "QZcjp4u5p2UEorIt",
+  "tags": []
+}

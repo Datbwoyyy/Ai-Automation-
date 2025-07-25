@@ -1,0 +1,144 @@
+{
+  "name": "Viral Content Replicator AI Agent",
+  "description": "Automates discovery, analysis, and recreation of viral LinkedIn posts.",
+  "modules": [
+    {
+      "id": "1",
+      "type": "trigger",
+      "app": "Make",
+      "module": "Manual",
+      "settings": {}
+    },
+    {
+      "id": "2",
+      "type": "action",
+      "app": "PhantomBuster",
+      "module": "Launch a Phantom",
+      "settings": {
+        "connection": "{{PHANTOMBUSTER_CONNECTION}}",
+        "phantomId": "508051012724033",
+        "saveArgument": true,
+        "argument": {
+          "category": "Content",
+          "connectionDegreesToScrape": [
+            "1",
+            "2",
+            "3+"
+          ],
+          "numberOfLinesPerLaunch": 10,
+          "numberOfResultsPerLaunch": 50,
+          "numberOfResultsPerSearch": 50,
+          "searchType": "linkedInSearchUrl",
+          "userAgent": "Mozilla/5.0 ...",
+          "enrichLeadsWithAdditionalInformation": true,
+          "linkedInSearchUrl": "https://www.linkedin.com/search/results/content/?keywords={{1.data.22s6a}}",
+          "identityId": "5508947644776277",
+          "sessionCookie": "{{PHANTOMBUSTER_SESSION_COOKIE}}"
+        },
+        "manualLaunch": false
+      }
+    },
+    {
+      "id": "3",
+      "type": "action",
+      "app": "PhantomBuster",
+      "module": "Get an Output",
+      "settings": {
+        "connection": "{{PHANTOMBUSTER_CONNECTION}}",
+        "phantomId": "508051012724033"
+      }
+    },
+    {
+      "id": "4",
+      "type": "action",
+      "app": "HTTP",
+      "module": "Make a request",
+      "settings": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+          "Authorization": "Bearer {{OPENAI_API_KEY}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are an expert LinkedIn post analyst."
+            },
+            {
+              "role": "user",
+              "content": "Analyze why this post went viral:\\n{{3.output.postText}}"
+            }
+          ],
+          "max_tokens": 400
+        },
+        "parseResponse": true
+      }
+    },
+    {
+      "id": "5",
+      "type": "action",
+      "app": "HTTP",
+      "module": "Make a request",
+      "settings": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+          "Authorization": "Bearer {{OPENAI_API_KEY}}",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a professional copywriter for Loubby AI."
+            },
+            {
+              "role": "user",
+              "content": "Generate a LinkedIn post in professional tone based on analysis:\\n{{4.response.choices[0].message.content}}"
+            }
+          ],
+          "max_tokens": 300
+        },
+        "parseResponse": true
+      }
+    },
+    {
+      "id": "6",
+      "type": "action",
+      "app": "GoogleSheets",
+      "module": "Add a row",
+      "settings": {
+        "connection": "{{GOOGLE_SHEET_CONNECTION}}",
+        "spreadsheetId": "{{GOOGLE_SHEET_ID}}",
+        "sheetName": "Posts",
+        "columns": {
+          "Topic": "{{1.data.22s6a}}",
+          "OriginalPost": "{{3.output.postText}}",
+          "Analysis": "{{4.response.choices[0].message.content}}",
+          "GeneratedPost": "{{5.response.choices[0].message.content}}",
+          "URL": "{{3.output.url}}"
+        }
+      }
+    },
+    {
+      "id": "7",
+      "type": "action",
+      "app": "GoogleSheets",
+      "module": "Add a row",
+      "settings": {
+        "connection": "{{GOOGLE_SHEET_CONNECTION}}",
+        "spreadsheetId": "{{GOOGLE_SHEET_ID}}",
+        "sheetName": "Logs",
+        "columns": {
+          "Timestamp": "{{date.now}}",
+          "Event": "Discovery and generation complete",
+          "Details": "Topic={{1.data.22s6a}}, Posts={{3.output.length}}"
+        }
+      }
+    }
+  ]
+}

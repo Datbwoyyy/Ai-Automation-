@@ -1,0 +1,201 @@
+{
+  "name": "Ai Publishing Workflow Connected to Ai blog",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "event": "pagedUpdatedInDatabase",
+        "databaseId": {
+          "__rl": true,
+          "value": "1e3dfc30-09ef-80da-8af6-f49a3259073b",
+          "mode": "list",
+          "cachedResultName": "STATUS",
+          "cachedResultUrl": "https://www.notion.so/1e3dfc3009ef80da8af6f49a3259073b"
+        }
+      },
+      "type": "n8n-nodes-base.notionTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8ab4b0aa-2af5-4f13-a1ea-864dd15e29d8",
+      "name": "Notion Trigger",
+      "credentials": {
+        "notionApi": {
+          "id": "zyIoydCuBIVBLmPT",
+          "name": "Notion account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4",
+          "mode": "list",
+          "cachedResultName": "Blog Posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "={{ $json['Completion Status'] }}",
+            "Title": "AI for small business",
+            "Blog Ideas ": "AI for small business"
+          },
+          "matchingColumns": [
+            "Blog Ideas "
+          ],
+          "schema": [
+            {
+              "id": "Blog Ideas ",
+              "displayName": "Blog Ideas ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LAST UPDATED",
+              "displayName": "LAST UPDATED",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Notion Link",
+              "displayName": "Notion Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Completion Status",
+              "displayName": "Completion Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ],
+      "id": "331330eb-eed9-4467-9fa8-031acbb24f5f",
+      "name": "Google Sheets",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "JKvBI9KkHgB6rDxe",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Notion Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "any",
+    "errorWorkflow": "iJKKRFMvzAcTIOta"
+  },
+  "versionId": "bd529430-0418-440d-8894-49e7e32461ed",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "07892bae1ba6cc644903875975427a0ec5bed4ecf2c7c7881cef16f4ef15fdab"
+  },
+  "id": "iJKKRFMvzAcTIOta",
+  "tags": []
+}

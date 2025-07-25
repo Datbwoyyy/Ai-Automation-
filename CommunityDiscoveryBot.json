@@ -1,0 +1,106 @@
+{
+  "name": "Community Discovery AI Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "functionCode": "return [\n  {\n    json: {\n      platform: \"Facebook\",\n      keyword: \"AI Startups Africa\",\n    }\n  }\n];"
+      },
+      "name": "Set Keywords",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "url": "https://api.ghostscraper.com/searchGroups",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "q",
+              "value": "={{$json[\"keyword\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Search Groups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "chat",
+        "chatMessage": "Summarize and rank this community based on its relevance to an AI startup founder in Africa:\n{{$json[\"description\"]}}",
+        "model": "gpt-4"
+      },
+      "name": "Summarize & Score (GPT-4)",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sheetId": "your_google_sheet_id",
+        "range": "Groups!A:F",
+        "valueInputMode": "USER_ENTERED",
+        "options": {},
+        "values": "={{ [\n  $json[\"name\"],\n  $json[\"platform\"],\n  $json[\"url\"],\n  $json[\"memberCount\"],\n  $json[\"description\"],\n  $node[\"Summarize & Score (GPT-4)\"].json[\"summary\"]\n] }}"
+      },
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Set Keywords": {
+      "main": [
+        [
+          {
+            "node": "Search Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Groups": {
+      "main": [
+        [
+          {
+            "node": "Summarize & Score (GPT-4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize & Score (GPT-4)": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,906 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2600,
+        200
+      ],
+      "id": "95b5e078-652b-460d-b686-c32a1189109e",
+      "name": "WhatsApp Trigger",
+      "webhookId": "958c7975-298d-46ba-aac3-c3054e15812c",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "bLlFRgSmjrFCxr1s",
+          "name": "WhatsApp OAuth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "get_last_order",
+        "description": "If a returning customer says \"same order\", this tool fetches their last saved order so the AI doesn’t ask again.",
+        "jsCode": "{\n  \"name\": \"get_last_order\",\n  \"description\": \"Fetch the customer's most recent order based on their WhatsApp phone number\",\n  \"parameters\": {\n    \"phone\": { \"type\": \"string\", \"description\": \"Customer's WhatsApp phone number\" }\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1920,
+        420
+      ],
+      "id": "38cdccf9-14fa-4de2-b73c-1a4577ce8227",
+      "name": "LAST ORDER"
+    },
+    {
+      "parameters": {
+        "name": "get_delivery_options",
+        "description": "For petrol orders only — this gets delivery fee options from nearby stations based on the customer’s street.",
+        "jsCode": "{\n  \"name\": \"get_delivery_options\",\n  \"description\": \"Return available petrol stations for a street with delivery fees for each one\",\n  \"parameters\": {\n    \"street\": { \"type\": \"string\", \"description\": \"Customer's delivery street name\" }\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1800,
+        520
+      ],
+      "id": "7f1119f4-5550-49d6-a42e-95edbbc03301",
+      "name": "Petroleum Delievery"
+    },
+    {
+      "parameters": {
+        "name": "get_delivery_agent",
+        "description": "Gets the delivery agent assigned to the customer’s street.",
+        "jsCode": "{\n    \"name\": \"get_delivery_agent\",\n    \"description\": \"Returns the delivery agent assigned to the customer's street\",\n    \"parameters\": {\n      \"street\": { \"type\": \"string\" }\n    }"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1680,
+        420
+      ],
+      "id": "97c1b2d5-f1b6-4362-9f9c-33072cf65ffa",
+      "name": "Delievery Agent"
+    },
+    {
+      "parameters": {
+        "name": "Send_and_wait_reply",
+        "description": "Sends a message to the delivery agent with the order details.",
+        "jsCode": "{\n  \"name\": \"send_and_wait_agent_reply\",\n  \"description\": \"Send a WhatsApp message to the delivery agent and wait for a reply like 'on it', 'delivered', or 'raining'\",\n  \"parameters\": {\n    \"agent_number\": { \"type\": \"string\", \"description\": \"Agent's WhatsApp number\" },\n    \"message\": { \"type\": \"string\", \"description\": \"Message with order details\" },\n    \"expected_replies\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"description\": \"Expected responses like 'on it', 'delivered', etc.\"\n    }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1560,
+        420
+      ],
+      "id": "19787ea3-a6c2-4698-9d3d-a8fa0e6304cb",
+      "name": "Notify Agent"
+    },
+    {
+      "parameters": {
+        "name": "notify_admin",
+        "description": "If something goes wrong (no agent reply, rain, etc), alert the founder/admin.",
+        "jsCode": "{\n  \"name\": \"notify_admin\",\n  \"description\": \"Notify the founder if there's an issue with order delivery\",\n  \"parameters\": {\n    \"issue\": { \"type\": \"string\" },\n    \"order_id\": { \"type\": \"string\" }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1440,
+        420
+      ],
+      "id": "6a208ba1-a18b-44aa-86dd-f629aaf9055c",
+      "name": "Notify Admin"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are GasFeel’s Smart WhatsApp Assistant, dedicated to handling cooking gas and petrol orders across local Nigerian communities. Always respond in a warm, friendly human tone—like chatting with a friend—while staying professional and efficient.\n\nALL RESPONSES MUST be in this exact JSON structure:\n\n```json\n{\n  \"role\": \"customer\" | \"delivery_agent\" | \"admin\",\n  \"message\": \"…\"\n}\n```\n\n---\n\nMEMORY BEHAVIOR\n\n1. On any incoming message, immediately call:\n\n```json\n{ \"name\": \"get_last_order\", \"arguments\": { \"phone\": CUSTOMER_PHONE } }\n```\n\n2. If a record is returned:\n\n```json\n{\n  \"role\": \"customer\",\n  \"message\": \"Welcome back, {name}! 😊 What can I do for you today?\"\n}\n```\n\n3. If no record:\n\n* Send:\n\n```\nOh, Hii! 👋\nWelcome to GasFeel — your fast and reliable gas & petrol delivery service! 🤩\nTo place an order, kindly share the following:\n• Your Name\n• Cooking Gas or Petrol?\n• Quantity\n• Detailed Delivery Address\n• Phone Number\nKindly provide the required details, and we’ll serve you in a blink of an eye! ⚡\n```\n\n* Ask for name:\n\n```json\n{\n  \"role\": \"customer\",\n  \"message\": \"I don’t think we’ve met—what’s your name?\"\n}\n```\n\n* Then call:\n\n```json\n{ \"name\": \"save_customer\", \"arguments\": { \"phone\": CUSTOMER_PHONE, \"name\": CUSTOMER_NAME } }\n```\n\n4. If customer says “Same order” or “Repeat”:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Got it—your last order was {product}, {quantity} to {street}. Should I place that again?\"\n}\n```\n\n5. Never ask for information already on file unless they ask to change it.\n\n---\n\nORDER FLOW\n\n1. Ask only for missing details:\n   • Product\n   • Quantity\n   • Delivery Address\n\n2. If Petrol, ask:\n   “Which station would you like?”\n\n3. After collecting all info, compute:\n\n* base\\_price\n* delivery\\_fee\n* profit\\_per\\_unit (₦100)\n* total = (base\\_price + profit) × quantity + delivery\\_fee\n\n4. Confirm:\n\n```json\n{\n  \"role\": \"customer\",\n  \"message\": \"Just to confirm — {quantity} {unit} of {product} to {street}. Should I go ahead and generate the invoice? ✅\"\n}\n```\n\n5. Then call:\n\n```json\n{\n  \"name\": \"generate_invoice\",\n  \"arguments\": {\n    \"name\": CUSTOMER_NAME,\n    \"product\": PRODUCT,\n    \"quantity\": QUANTITY,\n    \"station\": STATION,\n    \"street\": STREET\n  }\n}\n```\n\n6. Send invoice:\n   (Fuel)\n\n```plaintext\nOrder Summary:\n• {quantity} Liters of petrol: ₦{item_total}\n• Delivery to {street}: ₦{delivery_fee}\n• VAT: ₦0.00\n------------\nTotal Amount: ₦{total}\n📌 ₦{base_price}/L\n4987116876 · Moniepoint MFB · GasFeel\nSend payment receipt to confirm. 🚴‍♂️💨\n```\n\n(Gas)\n\n```plaintext\nOrder Summary:\n• {quantity} kg Cooking Gas: ₦{item_total}\n• Delivery Fee: ₦{delivery_fee}\n• VAT: ₦0.00\n------------\nTotal Amount: ₦{total}\n📌 ₦{base_price}/kg\n4987116876 · Moniepoint MFB · GasFeel\nSend payment receipt to confirm. 🚴‍♂️💨\n```\n\n7. If new customer:\n\n```json\n{\n  \"role\": \"customer\",\n  \"message\": \"Thanks for always choosing GasFeel, and don’t forget to tell more of your friends about us 🤩 We appreciate you 🔥❤️✨\"\n}\n```\n\n---\n\nPOST-PAYMENT & DELIVERY\n\n1. When payment is confirmed:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Thanks for the payment! I’m sending your order to our delivery agent now.\"\n}\n```\n\n2. Notify agent:\n\n```json\n{\n  \"role\":\"delivery_agent\",\n  \"message\":\"New Order: {quantity}{unit} of {product} for {name} at {street}. Paid. Customer: {phone}.\"\n}\n```\n\n3. Notify customer:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Great! I’ve forwarded your order. They’ll reply “on it” shortly.\"\n}\n```\n\n4. On “on it” reply:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Your delivery is on the way! 🚀\"\n}\n```\n\nThen call:\n\n```json\n{\n  \"name\": \"update_order_time\",\n  \"arguments\": {\n    \"order_id\": ORDER_ID,\n    \"field\": \"start_time\",\n    \"timestamp\": TIMESTAMP\n  }\n}\n```\n\n5. On “delivered” reply:\n\n```json\n{\n  \"name\": \"update_order_time\",\n  \"arguments\": {\n    \"order_id\": ORDER_ID,\n    \"field\": \"completion_time\",\n    \"timestamp\": TIMESTAMP\n  }\n}\n```\n\nThen call:\n\n```json\n{\n  \"name\": \"append_order\",\n  \"arguments\": {\n    \"order_id\": ORDER_ID,\n    \"comments\": \"Delivered successfully\",\n    \"timestamp\": TIMESTAMP\n  }\n}\n```\n\nReply:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Your order has been delivered! Thanks for choosing GasFeel. We hope to serve you again 🔥💙\"\n}\n```\n\n---\n\nESCALATIONS\n\nIf no “on it” reply in 1 minute:\n\n```json\n{\n  \"role\":\"admin\",\n  \"message\":\"🚨 No reply from delivery agent for Order #{order_id} after 1 minute. Please check.\"\n}\n```\n\nApologize:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"I’m sorry—our agent is taking a bit longer. I’ve escalated this and will update you ASAP.\"\n}\n```\n\n---\n\nBONUSES\n\nAfter 3 orders:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"You’ve unlocked our Frequent Buyer badge! 🚀 Thanks for always riding with GasFeel ❤️\"\n}\n```\n\nAsk for rating:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Hope everything went well! Mind rating our service from 1–5 or leaving a quick note? 💬✨\"\n}\n```\n\nAbandoned reminder:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Hey 👋 Just checking if you still want to place that order? I’ve got everything almost ready!\"\n}\n```\n\nReferral promo:\n\n```json\n{\n  \"role\":\"customer\",\n  \"message\":\"Love our service? Share your unique code *GASF123* with friends and earn ₦300 off your next order for each one who tries us! 🙌\"\n}\n```\n\nAfter-hours auto-reply:\n\n```json\n{\n  \"role\": \"customer\",\n  \"message\": \"Hey! We usually respond from 8am to 8pm. I’ll make sure your message gets handled first thing. 😊\"\n}\n```\n\n---\n\nROLES\n\n* `customer` → whoever messages\n* `delivery_agent` → +2347038056799\n* `admin` → +2349040342585\n\nTONE & STYLE\n\n* Warm, calm, efficient\n* Use contractions (“I’m”, “you’ll”)\n* Light emojis only\n* Never robotic or repetitive\n* Ask only for what’s missing\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -1580,
+        200
+      ],
+      "id": "374d26f3-cbff-4292-9ea6-a69c2f51e3e6",
+      "name": "CONVERSATIONAL AI"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        -2040,
+        420
+      ],
+      "id": "73b3931e-4cd5-4f7c-b988-e3b70418a510",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "5wmgTaf5f7mJdbhZ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "append_order",
+        "description": "Append the confirmed order to Google Sheets or database",
+        "jsCode": "{\n  \"name\": \"append_order\",\n  \"description\": \"Append a new order to Google Sheets with initial values\",\n  \"parameters\": {\n    \"date\": { \"type\": \"string\" },\n    \"day\": { \"type\": \"string\" },\n    \"order_id\": { \"type\": \"string\" },\n    \"order_type\": { \"type\": \"string\" },\n    \"quantity\": { \"type\": \"number\" },\n    \"customer_name\": { \"type\": \"string\" },\n    \"order_area\": { \"type\": \"string\" },\n    \"rider_name\": { \"type\": \"string\" },\n    \"order_time\": { \"type\": \"string\" },\n    \"station\": { \"type\": \"string\" },\n    \"cost_price\": { \"type\": \"number\" },\n    \"selling_price\": { \"type\": \"number\" }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1320,
+        420
+      ],
+      "id": "544f19d9-335f-4b2b-ae96-03ecf89db921",
+      "name": "append_order"
+    },
+    {
+      "parameters": {
+        "name": "update_order_time",
+        "description": "Updates Fulfillment Start Time or Completion Time in Google Sheet or DB",
+        "jsCode": "{\n  \"name\": \"update_order_time\",\n  \"description\": \"Updates Fulfillment Start Time or Completion Time in Google Sheet or DB\",\n  \"parameters\": {\n    \"order_id\": { \"type\": \"string\" },\n    \"field\": { \"type\": \"string\", \"enum\": [\"start_time\", \"completion_time\"] },\n    \"timestamp\": { \"type\": \"string\", \"description\": \"Time in ISO or HH:mm format\" }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        -1180,
+        420
+      ],
+      "id": "10dc3592-62d4-4840-8403-09517945f4ff",
+      "name": "Update Order time"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52eb6ca2-fdd0-48a3-abf8-b00e8bacd697",
+              "name": "senderName",
+              "value": "={{ $json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "985da53a-7afc-45da-aed4-f0bd8159a1bf",
+              "name": "sessionId",
+              "value": "={{ $json.contacts[0].wa_id }}",
+              "type": "string"
+            },
+            {
+              "id": "049a8b17-d899-4713-bf54-33ae7000c89e",
+              "name": "chatInput",
+              "value": "={{ $json.messages[0].text.body }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2380,
+        200
+      ],
+      "id": "8b85b5a2-55a7-44cb-bbd0-42b677e6fcf1",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.role }}",
+                    "rightValue": "customer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "346f0da9-c614-4a21-ab9e-4181f6b0cfb7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Customer"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dccae608-7168-47ed-a2f1-20f1f9ca0ba1",
+                    "leftValue": "={{ $json.role }}",
+                    "rightValue": "delivery_agent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Delievery Guy"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "21d5eb6a-dca1-4a73-ae44-e51a8461c78c",
+                    "leftValue": "={{ $json.role }}",
+                    "rightValue": "Admin",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Admin"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -420,
+        200
+      ],
+      "id": "fcbee17f-dd2f-4bf2-92a1-4f3cf1f6e0de",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.output || \"\";\nconst jsonMatch = raw.match(/{[\\s\\S]*}/);\n\nif (!jsonMatch) {\n  throw new Error(\"No JSON object found in output\");\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonMatch[0]);\n} catch (e) {\n  throw new Error(\"Failed to parse JSON: \" + e.message);\n}\n\nreturn [\n  {\n    json: {\n      role: parsed.role,\n      message: parsed.message\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        200
+      ],
+      "id": "f924087b-15e3-445e-aa1f-aa7852f44c30",
+      "name": "Parse Results And Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "=740670595791351",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "05320dbc-0b47-4305-ab21-04f4f0a1dd89",
+      "name": "CUSTOMER LINE",
+      "webhookId": "086d9a22-40a7-4246-97dd-5d95133e61a5",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "740670595791351",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        200
+      ],
+      "id": "e28eff29-6caa-4fbf-9a70-d48253cf92cb",
+      "name": "DELIEVERY GUY",
+      "webhookId": "086d9a22-40a7-4246-97dd-5d95133e61a5",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "=740670595791351",
+        "recipientPhoneNumber": "= 2349040342585",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        -200,
+        400
+      ],
+      "id": "427f6f8e-777a-4733-8ef4-3e12d70b0e29",
+      "name": "ADMIN ",
+      "webhookId": "086d9a22-40a7-4246-97dd-5d95133e61a5",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2160,
+        420
+      ],
+      "id": "030d3c65-16aa-46ea-9cd9-3ccd6e40497b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Rl8qAgrPqL74brLW",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1iy_AJCfAG63hpnn7kNGeDKJYgv7VXayXzw_tzpDnXVg",
+          "mode": "list",
+          "cachedResultName": "GasFeel_Operational_Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iy_AJCfAG63hpnn7kNGeDKJYgv7VXayXzw_tzpDnXVg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1344412752,
+          "mode": "list",
+          "cachedResultName": "Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iy_AJCfAG63hpnn7kNGeDKJYgv7VXayXzw_tzpDnXVg/edit#gid=1344412752"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Day",
+              "displayName": "Day",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order ID",
+              "displayName": "Order ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Type",
+              "displayName": "Order Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Amount (Kg/Liters)",
+              "displayName": "Amount (Kg/Liters)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Area",
+              "displayName": "Order Area",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rider Name",
+              "displayName": "Rider Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Time",
+              "displayName": "Order Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fulfillment Start Time",
+              "displayName": "Fulfillment Start Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Completion Time",
+              "displayName": "Order Completion Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Initiation Time (mins)",
+              "displayName": "Order Initiation Time (mins)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Order Fulfillment Time (mins)",
+              "displayName": "Order Fulfillment Time (mins)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total Time (mins)",
+              "displayName": "Total Time (mins)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Station",
+              "displayName": "Station",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Comments",
+              "displayName": "Comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cost Price per kg/liter (Naira)",
+              "displayName": "Cost Price per kg/liter (Naira)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "COGS (Naira)",
+              "displayName": "COGS (Naira)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Selling Price (Naira)",
+              "displayName": "Selling Price (Naira)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [
+        -1040,
+        420
+      ],
+      "id": "4061d3c8-1486-4db3-9005-7580b477c555",
+      "name": "Append row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "u3HhQUsPnh3LPE45",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Generate an order invoice and return invoice details",
+        "jsCode": "{\n  \"name\": \"generate_invoice\",\n  \"description\": \"Generate an order invoice and return invoice details\",\n  \"parameters\": {\n    \"name\": { \"type\": \"string\", \"description\": \"Customer's name\" },\n    \"product\": { \"type\": \"string\", \"enum\": [\"Gas\", \"Petrol\"], \"description\": \"Which product the customer ordered\" },\n    \"quantity\": { \"type\": \"number\", \"description\": \"Quantity ordered (kg for gas or liters for petrol)\" },\n    \"station\": { \"type\": \"string\", \"description\": \"Preferred petrol station (omit or empty string for gas)\" },\n    \"street\": { \"type\": \"string\", \"description\": \"Detailed delivery address\" }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        -960,
+        500
+      ],
+      "id": "156118eb-b546-429c-90a8-21aaf05e34db",
+      "name": "generate_invoice"
+    },
+    {
+      "parameters": {
+        "description": "Save a new customer's name and phone number in the database",
+        "jsCode": "{\n  \"name\": \"save_customer\",\n  \"description\": \"Save a new customer's name and phone number in the database\",\n  \"parameters\": {\n    \"phone\": { \"type\": \"string\", \"description\": \"Customer's WhatsApp phone number\" },\n    \"name\": { \"type\": \"string\", \"description\": \"Customer's full name\" }\n  }\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        -840,
+        420
+      ],
+      "id": "0c91824f-3f89-4311-a6f3-c043e53a7001",
+      "name": "save_customer"
+    },
+    {
+      "parameters": {
+        "description": "Update extra fields like comments, COGS, or calculations after delivery",
+        "jsCode": "{\n  \"name\": \"update_order_meta\",\n  \"description\": \"Update extra fields like comments, COGS, or calculations after delivery\",\n  \"parameters\": {\n    \"order_id\": { \"type\": \"string\" },\n    \"fields\": {\n      \"type\": \"object\",\n      \"description\": \"Key-value map of columns to update\",\n      \"properties\": {\n        \"comments\": { \"type\": \"string\" },\n        \"cogs\": { \"type\": \"number\" }\n      }\n    }\n  }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        -1240,
+        520
+      ],
+      "id": "20015a88-e63c-4b11-b1ae-7e8691da3592",
+      "name": "update_order_meta"
+    },
+    {
+      "parameters": {
+        "jsCode": "const orderId = `GF-${Date.now().toString(36).toUpperCase()}`;\n// e.g., GF-LSB6F3HZH\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        -740,
+        420
+      ],
+      "id": "9513fbff-2710-43b2-8106-a7afa2645be3",
+      "name": "orderId"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LAST ORDER": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Petroleum Delievery": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delievery Agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Admin": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONVERSATIONAL AI": {
+      "main": [
+        [
+          {
+            "node": "Parse Results And Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "append_order": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Order time": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "CUSTOMER LINE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DELIEVERY GUY",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ADMIN ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Results And Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_invoice": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save_customer": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_order_meta": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "orderId": {
+      "ai_tool": [
+        [
+          {
+            "node": "CONVERSATIONAL AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0ce30d13-713b-413c-8c98-56f86021751a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29b19c6fe5a2ca6da8cc8c9527da2ae7f618e7331b70a16ff335ebaadbf61fc6"
+  },
+  "id": "WHkUqMcgstNHcldX",
+  "tags": []
+}

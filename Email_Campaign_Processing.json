@@ -1,0 +1,408 @@
+{
+  "name": "Email Campaign Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Safely access the input\nconst inputData = $input.item.json;\nconst inputText = inputData.data || inputData.text || (typeof inputData === 'string' ? inputData : null);\n\n// Return empty array if invalid input\nif (!inputText || typeof inputText !== 'string') {\n  console.log(\"Input text is missing or not a string. Returning empty.\");\n  return [];\n}\n\ntry {\n  // Clean up control characters (newline, tab, etc.) inside string literals\n  const safeText = inputText\n    .replace(/[\\u0000-\\u001F]+/g, ' ') // Replace ASCII control characters\n    .replace(/\\r/g, '')                // Remove carriage returns\n    .replace(/\\n/g, ' ');              // Replace newlines with space\n\n  // Parse the outer array\n  const outerArray = JSON.parse(safeText);\n\n  if (!Array.isArray(outerArray)) {\n    throw new Error(\"The parsed input is not an array.\");\n  }\n\n  // Parse each item's inner content\n  const finalItems = outerArray.map((item, index) => {\n    if (item && item.message && typeof item.message.content === 'string') {\n      try {\n        const innerJson = JSON.parse(item.message.content);\n        return { json: innerJson };\n      } catch (e) {\n        console.log(`Skipping item at index ${index} due to invalid inner JSON: ${e.message}`);\n        return null;\n      }\n    } else {\n      console.log(`Skipping item at index ${index}: missing or invalid message/content.`);\n      return null;\n    }\n  }).filter(item => item !== null);\n\n  return finalItems;\n\n} catch (error) {\n  throw new Error(`Failed to parse the main JSON structure: ${error.message}`);\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        0
+      ],
+      "id": "cf7965d5-b35a-455a-ab66-6336dc370447",
+      "name": "PARSE JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assumes the input is an array of campaign objects from the previous node\n\nlet totalEmails = items.length;\nlet companies = new Set();\nlet urgencyCounts = {};\nlet approachCounts = {};\nlet painpoints = new Set();\nlet valueProps = {};\n\nfor (let item of items) {\n  const data = item.json;\n\n  // 1. Count companies\n  if (data.message_strategy?.company_name) {\n    companies.add(data.message_strategy.company_name);\n  }\n\n  // 2. Count urgency levels\n  const urgency = data.call_to_action?.urgency_level || \"unspecified\";\n  urgencyCounts[urgency] = (urgencyCounts[urgency] || 0) + 1;\n\n  // 3. Count approach types\n  const approach = data.message_strategy?.approach_type || \"unknown\";\n  approachCounts[approach] = (approachCounts[approach] || 0) + 1;\n\n  // 4. Collect all unique painpoints\n  const painpointList = data.message_strategy?.validated_painpoints?.split(',') || [];\n  painpointList.forEach(p => painpoints.add(p.trim()));\n\n  // 5. Track most common value propositions\n  const props = data.value_propositions_emphasized || [];\n  props.forEach(p => {\n    valueProps[p] = (valueProps[p] || 0) + 1;\n  });\n}\n\n// Find most common value props\nconst sortedProps = Object.entries(valueProps)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5)\n  .map(([key, _]) => key);\n\n// Final report\nconst summary = {\n  total_emails_processed: totalEmails,\n  distinct_companies_contacted: companies.size,\n  most_common_urgency_level: Object.entries(urgencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || \"none\",\n  total_unique_painpoints: painpoints.size,\n  top_approach_types: approachCounts,\n  most_common_value_propositions: sortedProps\n};\n\nreturn [{ json: summary }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        100
+      ],
+      "id": "0f9b6cac-9b8a-43c9-a108-687c691f31c4",
+      "name": "Summary Report With analysis report"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const data = item.json;\n\n  return {\n    json: {\n      subject_line: data.subject_line || \"\",\n      contact_name: data.message_strategy?.contact_name || \"\",\n      contact_email: data.message_strategy?.contact_email || \"\",\n      company_name: data.message_strategy?.company_name || \"\",\n      contact_title: data.message_strategy?.contact_title || \"\",\n      approach_type: data.message_strategy?.approach_type || \"\",\n      urgency_level: data.call_to_action?.urgency_level || \"\",\n      painpoints: data.message_strategy?.validated_painpoints || \"\",\n      value_props: Array.isArray(data.value_propositions_emphasized) ? data.value_propositions_emphasized.join(\", \") : \"\",\n      services: Array.isArray(data.cloudmaster_services_highlighted) ? data.cloudmaster_services_highlighted.join(\", \") : \"\",\n      primary_cta: data.call_to_action?.primary_cta || \"\"\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        -100
+      ],
+      "id": "8f224922-009b-4739-9ab6-ec215c92fa39",
+      "name": "STRUCTURED CSV"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1t8_6IHMzLW1MFFRGYCWOgtZF0Wq5LJo6_J6PHKmKxGw",
+          "mode": "list",
+          "cachedResultName": "Structured CSV",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1t8_6IHMzLW1MFFRGYCWOgtZF0Wq5LJo6_J6PHKmKxGw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1t8_6IHMzLW1MFFRGYCWOgtZF0Wq5LJo6_J6PHKmKxGw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "SUBJECT LINE ": "={{ $json.subject_line }}",
+            "CONTACT EMAIL": "={{ $json.contact_email }}",
+            "CONTACT TITLE": "={{ $json.contact_title }}",
+            "COMPANY NAME": "={{ $json.company_name }}",
+            "APPROACH TYPE": "={{ $json.approach_type }}",
+            "VALUE PROPS": "={{ $json.value_props }}",
+            "SERVICES": "={{ $json.services }}",
+            "PRIMARY CTA ": "={{ $json.primary_cta }}",
+            "PAIN POINTS": "={{ $json.painpoints }}",
+            "EMAIL BODY ": "={{ $('PARSE JSON').item.json.email_body }}",
+            "CALL TO ACTION": "={{ $json.urgency_level }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "SUBJECT LINE ",
+              "displayName": "SUBJECT LINE ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "EMAIL BODY ",
+              "displayName": "EMAIL BODY ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "COMPANY NAME",
+              "displayName": "COMPANY NAME",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CONTACT TITLE",
+              "displayName": "CONTACT TITLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CONTACT EMAIL",
+              "displayName": "CONTACT EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "APPROACH TYPE",
+              "displayName": "APPROACH TYPE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "VALUE PROPS",
+              "displayName": "VALUE PROPS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SERVICES",
+              "displayName": "SERVICES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CALL TO ACTION",
+              "displayName": "CALL TO ACTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PAIN POINTS",
+              "displayName": "PAIN POINTS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PRIMARY CTA ",
+              "displayName": "PRIMARY CTA ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        -100
+      ],
+      "id": "16217c4b-9d61-49f0-91ae-8c3c5265a14b",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "f0YlqT8pwgTkZ7uL",
+          "name": "Google Sheets account 16"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        2020,
+        0
+      ],
+      "id": "bd766957-1c34-4be9-b83e-ba9ef359d26c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2360,
+        0
+      ],
+      "id": "66e8cf72-9dc6-499b-860e-82a240c5404f",
+      "name": "Gmail",
+      "webhookId": "76cecf2a-0752-4dfa-8e4a-82670c9d1107",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "createFromText",
+        "content": "=Summary Report With analysis report\n    \"total_emails_processed\": 20,\n    \"distinct_companies_contacted\": 20,\n    \"most_common_urgency_level\": \"moderate\",\n    \"total_unique_painpoints\": 52,\n    \"top_approach_types\": {\n      \"value_demonstration\": 1,\n      \"cost_optimization\": 2,\n      \"crisis_prevention\": 2,\n      \"process_optimization\": 1,\n      \"risk_mitigation\": 2,\n      \"performance_optimization\": 2,\n      \"scalability_solution\": 1,\n      \"seasonal_preparation\": 2,\n      \"compliance_focused\": 1,\n      \"growth_enablement\": 1,\n      \"digital_transformation\": 1,\n      \"rapid_deployment\": 1,\n      \"predictive_analytics\": 1,\n      \"competitive_advantage\": 1,\n      \"operational_efficiency\": 1\n    },\n    \"most_common_value_propositions\": [\n      \"99.95% uptime\",\n      \"Regulatory compliance\",\n      \"Revenue protection\",\n      \"99.9% uptime guarantee\",\n      \"50% cost reduction\"",
+        "name": "Summary Report With analysis report",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root",
+          "cachedResultName": "/ (Root folder)"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1140,
+        100
+      ],
+      "id": "4948631b-0b8c-4ae0-884a-5879d7742d9b",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "EE21FRYz8I0kUYEK",
+          "name": "Google Drive account 8"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        260,
+        0
+      ],
+      "id": "ebb24d35-fc6d-4c84-be69-712d888057af",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "9da21b3e-feca-4f20-9628-820eb40d8858",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1caa155c-4426-47e9-8e7e-547135544d89",
+      "name": "Webhook",
+      "webhookId": "9da21b3e-feca-4f20-9628-820eb40d8858"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "PARSE JSON": {
+      "main": [
+        [
+          {
+            "node": "Summary Report With analysis report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "STRUCTURED CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summary Report With analysis report": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "STRUCTURED CSV": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        []
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "PARSE JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "65c8065d-f2be-4144-bb44-9f949fcbceb5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6fb639298be443e844be3206b20ad7955a5b5bab10f6930c436a39138d726f19"
+  },
+  "id": "eatNayqBjKMQ0muo",
+  "tags": []
+}

@@ -1,0 +1,498 @@
+﻿{
+  "created": "1747434525068",
+  "updated": "1747434525068",
+  "name": "MSDAT MetaData Review-Data sources + Ai",
+  "description": "",
+  "tags": [],
+  "pieces": [
+    "@activepieces/piece-schedule",
+    "@activepieces/piece-math-helper",
+    "@activepieces/piece-google-sheets",
+    "@activepieces/piece-http"
+  ],
+  "template": {
+    "displayName": "MSDAT MetaData Review-Data sources + Ai",
+    "trigger": {
+      "name": "trigger",
+      "valid": true,
+      "displayName": "Cron Expression",
+      "type": "PIECE_TRIGGER",
+      "settings": {
+        "pieceName": "@activepieces/piece-schedule",
+        "pieceVersion": "0.1.5",
+        "pieceType": "OFFICIAL",
+        "packageType": "REGISTRY",
+        "input": {
+          "timezone": "Africa/Lagos",
+          "cronExpression": "0 0 0 ? * FRI/2 *"
+        },
+        "inputUiInfo": {
+          "customizedInputs": {}
+        },
+        "triggerName": "cron_expression"
+      },
+      "nextAction": {
+        "name": "step_13",
+        "skip": false,
+        "type": "PIECE",
+        "valid": true,
+        "settings": {
+          "input": {
+            "first_number": "68",
+            "second_number": "10000"
+          },
+          "pieceName": "@activepieces/piece-math-helper",
+          "pieceType": "OFFICIAL",
+          "actionName": "generateRandom_math",
+          "inputUiInfo": {
+            "customizedInputs": {}
+          },
+          "packageType": "REGISTRY",
+          "pieceVersion": "0.0.11",
+          "errorHandlingOptions": {
+            "retryOnFailure": {
+              "value": false
+            },
+            "continueOnFailure": {
+              "value": false
+            }
+          }
+        },
+        "nextAction": {
+          "name": "step_5",
+          "skip": false,
+          "type": "PIECE",
+          "valid": true,
+          "settings": {
+            "input": {
+              "auth": "{{connections['AI-drive-GoogleSheets']}}",
+              "memKey": "{{step_13}}",
+              "sheetId": 2045360923,
+              "startRow": "2",
+              "groupSize": "10000",
+              "spreadsheetId": "1No7oRZIomJJ2UcdVSUO7G48QgBgY1-GazW4-ZEj6rqc",
+              "includeTeamDrives": true
+            },
+            "pieceName": "@activepieces/piece-google-sheets",
+            "pieceType": "OFFICIAL",
+            "actionName": "get_next_rows",
+            "inputUiInfo": {
+              "customizedInputs": {}
+            },
+            "packageType": "REGISTRY",
+            "pieceVersion": "0.12.2",
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_2",
+            "skip": false,
+            "type": "CODE",
+            "valid": true,
+            "settings": {
+              "input": {
+                "data_source": "{{step_5}}"
+              },
+              "sourceCode": {
+                "code": "export const code = async (context: { data_source?: any[] }) => {\n  const rows = Array.isArray(context.data_source) ? context.data_source : [];\n  const issues: Array<{\n    row: number;\n    errors: string[];\n    values: Record<string, any>;\n  }> = [];\n\n  const CURRENT_YEAR = new Date().getFullYear();\n  const YEAR_LOWER = 1900;\n  const YEAR_UPPER = CURRENT_YEAR + 1;\n\n  rows.forEach((row, idx) => {\n    const rowNum = idx + 1;\n    const vals = row.values || {};\n    const errs: string[] = [];\n\n    // — year_available (col E) must be comma‑list of valid years or ranges\n    if (!vals.E || !String(vals.E).trim()) {\n      errs.push('Missing year_available (Column E)');\n    } else {\n      String(vals.E)\n        .split(',')\n        .map(s => s.trim())\n        .forEach(token => {\n          // allow ranges like “2000-2005”\n          const [a, b] = token.split('-').map(s => s.trim());\n          [a, b || a].forEach(yStr => {\n            const y = parseInt(yStr, 10);\n            if (isNaN(y) || y < YEAR_LOWER || y > YEAR_UPPER) {\n              errs.push(`Invalid year \"${yStr}\" in year_available (Column E)`);\n            }\n          });\n        });\n    }\n\n    // — period_available (col F) either comma‑list of years/ranges or “Month, YYYY”\n    if (!vals.F || !String(vals.F).trim()) {\n      errs.push('Missing period_available (Column F)');\n    } else {\n      const p = String(vals.F).trim();\n      const isYearList = p\n        .split(',')\n        .every(tok => /^\\d{4}(-\\d{4})?$/.test(tok.trim()));\n      const isMonthYear = /^[A-Za-z]+,\\s*\\d{4}$/.test(p);\n      if (!isYearList && !isMonthYear) {\n        errs.push(`Invalid period_available (“${p}”) (Column F)`);\n      }\n    }\n\n    // — methodology (col G) must be >50 chars unless explicitly “Not Applicable”\n    if (!vals.G || !String(vals.G).trim()) {\n      errs.push('Missing methodology (Column G)');\n    } else {\n      const m = String(vals.G).trim();\n      if (\n        m.toLowerCase() !== 'not applicable' &&\n        m.length < 50\n      ) {\n        errs.push(\n          `Methodology too brief (${m.length} chars); please expand (Column G)`\n        );\n      }\n    }\n\n    // — subnational_data (col H) must be Yes/No\n    if (!vals.H || !String(vals.H).trim()) {\n      errs.push('Missing subnational_data (Column H)');\n    } else {\n      const h = String(vals.H).trim().toLowerCase();\n      if (h !== 'yes' && h !== 'no') {\n        errs.push(\n          `subnational_data must be “Yes” or “No” (Column H), got “${vals.H}”`\n        );\n      }\n    }\n\n    // — Classification (col I) must start uppercase\n    if (!vals.I || !String(vals.I).trim()) {\n      errs.push('Missing Classification (Column I)');\n    } else {\n      const c = String(vals.I).trim();\n      if (!/^[A-Z]/.test(c)) {\n        errs.push(\n          `Classification should start uppercase (Column I), got “${c}”`\n        );\n      }\n    }\n\n    // collect if any\n    if (errs.length) {\n      issues.push({\n        row: rowNum,\n        errors: errs,\n        values: vals,\n      });\n    }\n  });\n\n  // Return an array of { row, errors[], values }\n  return issues;\n};\n",
+                "packageJson": "{}"
+              },
+              "inputUiInfo": {
+                "customizedInputs": {}
+              },
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            },
+            "nextAction": {
+              "name": "step_3",
+              "skip": false,
+              "type": "PIECE",
+              "valid": true,
+              "settings": {
+                "input": {
+                  "url": "https://ollamapi.e4eweb.space/api/generate",
+                  "body": {
+                    "data": {
+                      "model": "gemma3:12b",
+                      "format": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "errors"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": [
+                                "string",
+                                "integer"
+                              ]
+                            },
+                            "errors": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "prompt": "You are a professional metadata quality analyst{{step_2}}. You receive a list of rows, each with fields from `id` to `errors`.\n\nYour job:\n- For each row, analyze its data.\n- Return only the `id` and a new `errors` object.\n- The `errors` object should contain keys for any fields that are empty, vague (like 'N/A', 'Not Available', 'Annual', 'Quarterly', etc.), or logically inconsistent.\n- If a row has no errors, return an empty `errors` object.\n- Do not return or modify any other fields.\n- Output valid JSON as an array of objects with just `id` and `errors` fields.\n\nExample output:\n[\n  {\"id\": 1, \"errors\": {\"year_available\": \"Missing value. Please provide a year.\"}},\n  {\"id\": 2, \"errors\": {}}\n]",
+                      "stream": false
+                    }
+                  },
+                  "method": "POST",
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Basic ZTRlYWk6MzRlQWlAMjAyNQ=="
+                  },
+                  "failsafe": false,
+                  "body_type": "json",
+                  "use_proxy": false,
+                  "queryParams": {},
+                  "proxy_settings": {}
+                },
+                "pieceName": "@activepieces/piece-http",
+                "pieceType": "OFFICIAL",
+                "actionName": "send_request",
+                "inputUiInfo": {
+                  "schema": {
+                    "body": {
+                      "data": {
+                        "type": "JSON",
+                        "required": true,
+                        "displayName": "JSON Body"
+                      }
+                    },
+                    "proxy_settings": {}
+                  },
+                  "customizedInputs": {}
+                },
+                "packageType": "REGISTRY",
+                "pieceVersion": "0.6.2",
+                "errorHandlingOptions": {
+                  "retryOnFailure": {
+                    "value": false
+                  },
+                  "continueOnFailure": {
+                    "value": false
+                  }
+                }
+              },
+              "nextAction": {
+                "name": "step_4",
+                "skip": false,
+                "type": "CODE",
+                "valid": true,
+                "settings": {
+                  "input": {
+                    "ai": "{{step_3['body']['response']}}",
+                    "original": "{{step_2}}"
+                  },
+                  "sourceCode": {
+                    "code": "export const code = async (inputs: {\n  ai: string,\n  original: Array<{ row: number, errors: string[], values: Record<string, any> }>\n}) => {\n  const original = inputs.original;\n  const aiRaw = inputs.ai;\n\n  // Parse AI JSON string\n  let aiParsed;\n  try {\n    aiParsed = JSON.parse(aiRaw);\n  } catch (e) {\n    throw new Error(\"Invalid AI JSON format\");\n  }\n\n  // Create a lookup from id → error object (not wrapped in array)\n  const aiMap = {};\n  for (const item of aiParsed) {\n    aiMap[item.id] = item.errors;\n  }\n\n  // Merge: add \"error\" field based on values.A\n  const merged = original.map(entry => {\n    const idStr = entry.values?.A;\n    const id = parseInt(idStr);\n    const aiErrors = aiMap[id] || null;\n\n    return {\n      ...entry,\n      error: aiErrors // Add AI errors as \"error\"\n    };\n  });\n\n  return merged;\n};\n",
+                    "packageJson": "{}"
+                  },
+                  "inputUiInfo": {
+                    "customizedInputs": {}
+                  },
+                  "errorHandlingOptions": {
+                    "retryOnFailure": {
+                      "value": false
+                    },
+                    "continueOnFailure": {
+                      "value": false
+                    }
+                  }
+                },
+                "nextAction": {
+                  "name": "step_6",
+                  "skip": false,
+                  "type": "PIECE",
+                  "valid": true,
+                  "settings": {
+                    "input": {
+                      "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                      "sheetId": 2038151467,
+                      "spreadsheetId": "1Gd7cGdmsVqmVvPgWuQOqUxqBBF-Kl-DYPysMvl2uLI0",
+                      "includeTeamDrives": true,
+                      "is_first_row_headers": true
+                    },
+                    "pieceName": "@activepieces/piece-google-sheets",
+                    "pieceType": "OFFICIAL",
+                    "actionName": "clear_sheet",
+                    "inputUiInfo": {
+                      "customizedInputs": {}
+                    },
+                    "packageType": "REGISTRY",
+                    "pieceVersion": "0.12.2",
+                    "errorHandlingOptions": {
+                      "retryOnFailure": {
+                        "value": false
+                      },
+                      "continueOnFailure": {
+                        "value": true
+                      }
+                    }
+                  },
+                  "nextAction": {
+                    "name": "step_1",
+                    "skip": false,
+                    "type": "LOOP_ON_ITEMS",
+                    "valid": true,
+                    "settings": {
+                      "items": "{{step_4}}",
+                      "inputUiInfo": {
+                        "customizedInputs": {}
+                      }
+                    },
+                    "nextAction": {
+                      "name": "step_8",
+                      "skip": false,
+                      "type": "PIECE",
+                      "valid": true,
+                      "settings": {
+                        "input": {
+                          "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                          "row_id": "2",
+                          "values": {
+                            "A": "0",
+                            "B": "0"
+                          },
+                          "sheetId": 0,
+                          "spreadsheetId": "1u672SjosAVIk4CQR6Hw61nS8yZkU0GBV4E08_8jnK2c",
+                          "first_row_headers": true,
+                          "includeTeamDrives": true
+                        },
+                        "pieceName": "@activepieces/piece-google-sheets",
+                        "pieceType": "OFFICIAL",
+                        "actionName": "update_row",
+                        "inputUiInfo": {
+                          "schema": {
+                            "values": {
+                              "A": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Last Index 1",
+                                "displayName": "Last Index 1",
+                                "defaultValue": ""
+                              },
+                              "B": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Last Index 2",
+                                "displayName": "Last Index 2",
+                                "defaultValue": ""
+                              }
+                            }
+                          },
+                          "customizedInputs": {}
+                        },
+                        "packageType": "REGISTRY",
+                        "pieceVersion": "0.12.2",
+                        "errorHandlingOptions": {
+                          "retryOnFailure": {
+                            "value": false
+                          },
+                          "continueOnFailure": {
+                            "value": false
+                          }
+                        }
+                      },
+                      "displayName": "Update Row"
+                    },
+                    "displayName": "Loop on Datasource",
+                    "firstLoopAction": {
+                      "name": "step_7",
+                      "skip": false,
+                      "type": "PIECE",
+                      "valid": true,
+                      "settings": {
+                        "input": {
+                          "auth": "{{connections['AI-drive-GoogleSheets']}}",
+                          "values": {
+                            "A": "{{step_1['item']['values']['A']}}",
+                            "B": "{{step_1['item']['values']['B']}}",
+                            "C": "{{step_1['item']['values']['C']}}",
+                            "D": "{{step_1['item']['values']['D']}}",
+                            "E": "{{step_1['item']['values']['E']}}",
+                            "F": "{{step_1['item']['values']['F']}}",
+                            "G": "{{step_1['item']['values']['G']}}",
+                            "H": "{{step_1['item']['values']['H']}}",
+                            "I": "{{step_1['item']['values']['I']}}",
+                            "J": "{{step_1['item']['errors'][0]}}",
+                            "K": "{{step_1['item']['errors'][1]}}",
+                            "L": "{{step_1['item']['errors'][2]}}",
+                            "M": "{{step_1['item']['errors'][3]}}",
+                            "N": "{{step_1['item']['errors'][4]}}",
+                            "O": "{{step_1['item']['error']}}"
+                          },
+                          "sheetId": 2038151467,
+                          "as_string": false,
+                          "spreadsheetId": "1Gd7cGdmsVqmVvPgWuQOqUxqBBF-Kl-DYPysMvl2uLI0",
+                          "first_row_headers": true,
+                          "includeTeamDrives": true
+                        },
+                        "pieceName": "@activepieces/piece-google-sheets",
+                        "pieceType": "OFFICIAL",
+                        "actionName": "insert_row",
+                        "inputUiInfo": {
+                          "schema": {
+                            "values": {
+                              "A": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "id",
+                                "displayName": "id",
+                                "defaultValue": ""
+                              },
+                              "B": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "datasource",
+                                "displayName": "datasource",
+                                "defaultValue": ""
+                              },
+                              "C": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "full_name",
+                                "displayName": "full_name",
+                                "defaultValue": ""
+                              },
+                              "D": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "description",
+                                "displayName": "description",
+                                "defaultValue": ""
+                              },
+                              "E": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "year_available",
+                                "displayName": "year_available",
+                                "defaultValue": ""
+                              },
+                              "F": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "period_available",
+                                "displayName": "period_available",
+                                "defaultValue": ""
+                              },
+                              "G": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "methodology",
+                                "displayName": "methodology",
+                                "defaultValue": ""
+                              },
+                              "H": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "subnational_data",
+                                "displayName": "subnational_data",
+                                "defaultValue": ""
+                              },
+                              "I": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Classification",
+                                "displayName": "Classification",
+                                "defaultValue": ""
+                              },
+                              "J": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Error 1",
+                                "displayName": "Error 1",
+                                "defaultValue": ""
+                              },
+                              "K": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Error 2",
+                                "displayName": "Error 2",
+                                "defaultValue": ""
+                              },
+                              "L": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Error 3",
+                                "displayName": "Error 3",
+                                "defaultValue": ""
+                              },
+                              "M": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Error 4",
+                                "displayName": "Error 4",
+                                "defaultValue": ""
+                              },
+                              "N": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Error 5",
+                                "displayName": "Error 5",
+                                "defaultValue": ""
+                              },
+                              "O": {
+                                "type": "SHORT_TEXT",
+                                "required": false,
+                                "description": "Ai Error",
+                                "displayName": "Ai Error",
+                                "defaultValue": ""
+                              }
+                            }
+                          },
+                          "customizedInputs": {}
+                        },
+                        "packageType": "REGISTRY",
+                        "pieceVersion": "0.12.2",
+                        "errorHandlingOptions": {
+                          "retryOnFailure": {
+                            "value": false
+                          },
+                          "continueOnFailure": {
+                            "value": false
+                          }
+                        }
+                      },
+                      "displayName": "Insert Rows to Datasource"
+                    }
+                  },
+                  "displayName": "Clear DataSource Sheet"
+                },
+                "displayName": "Custom Javascript Code"
+              },
+              "displayName": "gemma vision model Error Detection  V2 Copy"
+            },
+            "displayName": "Custom Javascript Code"
+          },
+          "displayName": "Get datasources"
+        },
+        "displayName": "Generate Random Number"
+      }
+    },
+    "valid": true,
+    "connectionIds": [
+      "AI-drive-GoogleSheets"
+    ],
+    "schemaVersion": "1"
+  },
+  "blogUrl": ""
+}

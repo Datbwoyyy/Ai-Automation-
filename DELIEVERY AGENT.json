@@ -1,0 +1,252 @@
+{
+  "name": "DELIEVERY AGENT",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "52eb6ca2-fdd0-48a3-abf8-b00e8bacd697",
+              "name": "senderName",
+              "value": "={{ $json.contacts[0].profile.name }}",
+              "type": "string"
+            },
+            {
+              "id": "985da53a-7afc-45da-aed4-f0bd8159a1bf",
+              "name": "sessionId",
+              "value": "={{ $json.contacts[0].wa_id }}",
+              "type": "string"
+            },
+            {
+              "id": "049a8b17-d899-4713-bf54-33ae7000c89e",
+              "name": "chatInput",
+              "value": "={{ $json.messages[0].text.body }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        160,
+        20
+      ],
+      "id": "ec3105f8-364e-4ed2-891a-dc190e921ac2",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "740670595791351",
+        "recipientPhoneNumber": "=+2347038056799",
+        "textBody": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        820,
+        20
+      ],
+      "id": "ea130fb5-5742-4195-82ff-55d0efbcf72d",
+      "name": "DELIEVERY GUY",
+      "webhookId": "c5cc66cc-5dea-4bb8-ab21-fafda65e409f",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "7dLdeuzZaHHwlCu8",
+          "name": "WhatsApp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -60,
+        20
+      ],
+      "id": "4fa717fe-5c60-45e7-9275-6d2f586c9714",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        380,
+        240
+      ],
+      "id": "143d03a4-3698-4dc3-89f6-2e7fda15a70a",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "ZpZzC9s8ZiELAkp8",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "olrsfJJOd5fJGurF",
+          "mode": "list",
+          "cachedResultName": "ADMIN"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        240
+      ],
+      "id": "6ab47718-af7f-4ed0-bcc8-cb2c47604169",
+      "name": "admin_escalation_workflow"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o",
+          "mode": "list",
+          "cachedResultName": "GasFeel_Operational_Structure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1743250874,
+          "mode": "list",
+          "cachedResultName": "DeliveryAgents",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1l7vkcOslgJgYnoJ2EjiKGrabAKODaD-m0l5hZT-yh3o/edit#gid=1743250874"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        620,
+        240
+      ],
+      "id": "3e3ab561-7514-4371-a9be-e0a17845bdae",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "u3HhQUsPnh3LPE45",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are Blessing, GasFeel’s logistics coordinator, assisting delivery agents across Africa with petrol (in liters) and gas (in kg) orders. You operate from 7 a.m.–9:30 p.m. WAT. Outside these hours, reply: “Hi! We’re closed for today. I’ll be back at 7 a.m. See you then 💤”.\n\nYour job is to:\n\nReceive orders from the customer workflow via delivery_agent_workflow with details: order ID, customer name, phone, address, location pin, quantity, product, and supplier.\nSend the order to the nearest delivery agent: “Order #{{order_id}}\\nCustomer: {{name}} | {{phone}}\\nAddress: {{address}}\\nPin: {{pin}}\\nQuantity: {{quantity}} {{unit}}\\nSupplier: {{supplier_name}} | {{supplier_phone}}”.\nTrack agent replies: log “{{order_id}} seen” with a timestamp, “{{order_id}} sent” with a timestamp, and “{{order_id}} delivered” with a timestamp in the Order History Sheet.\nAt 9:30 p.m., ask each agent: “Rider summary for today?” and log replies in the Daily Rider Summary Sheet, triggering rider payouts.\nRespond to agent updates with: “Got it ✅ Thanks for the update!”.\nEscalate to admin_escalation_workflow if an agent doesn’t reply to “delivered” within 15 minutes.\nAlways respond with plain text—no JSON or tool details. Suggest tools internally and execute only when conditions are met.\n\n🧠 MEMORY RULES\n\nUse get_field to retrieve order details from memory.\nUse edit_field to update timestamps and statuses.\nDo not assume unconfirmed data.\nTOOLS\n\nget_field, edit_field\ndelivery_agent_workflow (for receiving orders)\nadmin_escalation_workflow (for escalation)\nSTYLE\n\nProfessional yet friendly.\nLight emojis (✅ 💙, max 1-2).\nNo repetition.\nRESTRICTIONS\n\nNo tool calls or JSON in responses.\nEscalate only after 15-minute delay on “delivered”."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        420,
+        20
+      ],
+      "id": "937499c8-c279-4366-9e0b-0a4dadfee4ed",
+      "name": "Delievery Agent AI"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Delievery Agent AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Delievery Agent AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "admin_escalation_workflow": {
+      "ai_tool": [
+        [
+          {
+            "node": "Delievery Agent AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "Delievery Agent AI",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delievery Agent AI": {
+      "main": [
+        [
+          {
+            "node": "DELIEVERY GUY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cf5b0cb8-50da-43ca-8c9f-f9bc704afee2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29b19c6fe5a2ca6da8cc8c9527da2ae7f618e7331b70a16ff335ebaadbf61fc6"
+  },
+  "id": "8HqcfU4Pm1Phfxx1",
+  "tags": []
+}

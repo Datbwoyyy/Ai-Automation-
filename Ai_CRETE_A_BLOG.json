@@ -1,0 +1,405 @@
+{
+  "name": "Ai CRETE A BLOG",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c1367d30-e52e-49d9-934d-817724335a85",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4",
+          "mode": "list",
+          "cachedResultName": "Blog Posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        0
+      ],
+      "id": "78983096-ab0d-4709-837e-44f0ad00125b",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "JKvBI9KkHgB6rDxe",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        460,
+        60
+      ],
+      "id": "c06bd9e9-2326-41fd-af4d-6decc38f91ae",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "t9RwsP3lj0LDgXqJ",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"openai/gpt-3.5-turbo\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a helpful blogging assistant.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a blog outline for a 700-word post on {{ $json['Blog Ideas '] }}. Include a strong hook,include 3–4 compelling arguments, and a clear CTA.\"\n    }\n  ]\n}\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        600,
+        -80
+      ],
+      "id": "de36f341-c5fd-4b75-a18a-2a9eda86633e",
+      "name": "HTTP Request",
+      "credentials": {
+        "openRouterApi": {
+          "id": "t9RwsP3lj0LDgXqJ",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "= [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a professional blog writer specializing in clear, engaging, and data-driven posts.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Using this outline, write a full blog post.Write only ONE blog post, No multiple topics. Make it sound thought-provoking, insightful, and geared toward startup founders. Use storytelling, statistics, and a confident tone. Include company-specific values, case studies, or CTAs where relevant.\\n\\nOutline:\\n\\n{{ $json['choices'][0]['message']['content'] }}\"\n    }\n  ]"
+            },
+            {
+              "name": "model",
+              "value": "openai/gpt-3.5-turbo"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        200
+      ],
+      "id": "21ebb11c-3305-4dbb-8f89-268c821bb143",
+      "name": "HTTP Request2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "t9RwsP3lj0LDgXqJ",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pageId": {
+          "__rl": true,
+          "value": "https://www.notion.so/PARENT-PAGE-1e2dfc3009ef80209657eb9300cf8e4a",
+          "mode": "url"
+        },
+        "title": "={{ $('Google Sheets').item.json['Blog Ideas '] }}",
+        "blockUi": {
+          "blockValues": [
+            {
+              "textContent": "={{ $json.splitPost[0] }}"
+            },
+            {
+              "textContent": "={{ $json.splitPost[1] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        160
+      ],
+      "id": "c92a5375-59b8-4249-8e72-b52cb29d7b76",
+      "name": "Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "zyIoydCuBIVBLmPT",
+          "name": "Notion account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Grab the full text from your previous node:\nconst text = $node[\"HTTP Request2\"].json.choices[0].text;\n\n// 2. Define max length per block:\nconst maxLen = 2000;\n\n// 3. Split into paragraphs first:\nconst paras = text.split('\\n\\n');\n\nconst chunks = [];\nlet current = '';\n\n// 4. Group paragraphs into ≤ maxLen chunks:\nfor (const para of paras) {\n  // If adding this paragraph still under limit:\n  if ((current + '\\n\\n' + para).length <= maxLen) {\n    current += (current ? '\\n\\n' : '') + para;\n  } else {\n    // Push the filled chunk:\n    if (current) chunks.push(current);\n    // If the paragraph itself is small enough, start new chunk:\n    if (para.length <= maxLen) {\n      current = para;\n    } else {\n      // Paragraph too long—slice it into sub-chunks of maxLen\n      for (let i = 0; i < para.length; i += maxLen) {\n        chunks.push(para.slice(i, i + maxLen));\n      }\n      current = '';\n    }\n  }\n}\n// 5. Push any remainder:\nif (current) chunks.push(current);\n\n// 6. Return each chunk as its own item for downstream looping:\nreturn [{\n  json: {\n    splitPost: chunks\n  }\n}];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        200
+      ],
+      "id": "6de40238-340b-4370-8e1c-7ba4d5f79042",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4",
+          "mode": "list",
+          "cachedResultName": "Blog Posts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O-UkEY6kOdSb0EAUrDyVai9iQa4V7B4pD8DADMGtry4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Blog Ideas ": "={{ $('Google Sheets').item.json['Blog Ideas '] }}",
+            "Date Created": "={{ $now }}",
+            "Notion Link": "={{ $json.url }}"
+          },
+          "matchingColumns": [
+            "Blog Ideas "
+          ],
+          "schema": [
+            {
+              "id": "Blog Ideas ",
+              "displayName": "Blog Ideas ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date Created",
+              "displayName": "Date Created",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "LAST UPDATED",
+              "displayName": "LAST UPDATED",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notion Link",
+              "displayName": "Notion Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1060,
+        20
+      ],
+      "id": "cac00c23-e633-44e8-9596-0d5c4f0ce249",
+      "name": "Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "JKvBI9KkHgB6rDxe",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notion": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c1904bd7-cbdc-4e71-b6cc-87f840ddb307",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "07892bae1ba6cc644903875975427a0ec5bed4ecf2c7c7881cef16f4ef15fdab"
+  },
+  "id": "6L9wj20t7SJZCy4G",
+  "tags": []
+}
